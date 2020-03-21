@@ -7,10 +7,6 @@ from rlpyt.utils.collections import namedarraytuple
 RSSMState = namedarraytuple('RSSMState', ['dist', 'stoch', 'deter'])
 
 
-def get_rssm_features(state: RSSMState):
-    return
-
-
 class TransitionBase(nn.Module):
     def __init__(self):
         super().__init__()
