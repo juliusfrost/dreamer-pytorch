@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as tf
 from rlpyt.utils.collections import namedarraytuple
 
-RSSMState = namedarraytuple('RSSM State', ['dist', 'stoch', 'deter'])
+RSSMState = namedarraytuple('RSSMState', ['dist', 'stoch', 'deter'])
 
 
 class TransitionBase(nn.Module):
@@ -49,7 +49,7 @@ class RSSMTransition(TransitionBase):
 
     def _build_rnn_input_model(self):
         rnn_input_model = [nn.Linear(self._action_size + self._stoch_size, self._hidden_size)]
-        rnn_input_model += [self.activation()]
+        rnn_input_model += [self._activation()]
         return nn.Sequential(*rnn_input_model)
 
     def _build_stochastic_model(self):
