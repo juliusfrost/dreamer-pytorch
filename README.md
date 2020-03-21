@@ -51,3 +51,8 @@ To run tests:
 ```bash
 pytest tests
 ```
+
+### Styling
+
+Use PEP8 style for python syntax. (ctrl-alt-l in PyCharm)  
+For PyTorch, check out this [unofficial style guide](https://github.com/IgorSusmelj/pytorch-styleguide)
