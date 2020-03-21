@@ -10,9 +10,12 @@ TensorFlow 1 implementation: https://github.com/google-research/dreamer
 ## Installation
 
 Within this directory, clone the [rlpyt](https://github.com/astooke/rlpyt) framework with
+`git clone https://github.com/astooke/rlpyt.git`  
+Or install directly from github with 
 ```bash
-git clone https://github.com/astooke/rlpyt.git
+pip install git+https://github.com/astooke/rlpyt.git
 ```
+
 
 ### Install packages
 
