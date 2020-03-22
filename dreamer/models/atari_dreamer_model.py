@@ -1,0 +1,2 @@
+class AtariDreamerModel:
+    pass
