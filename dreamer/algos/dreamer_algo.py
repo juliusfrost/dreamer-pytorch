@@ -29,6 +29,7 @@ class Dreamer(RlAlgorithm):
             expl_amount=0.3,
             expl_decay=0.0,
             expl_min=0.0,
+            optim_kwargs=None,
     ):
         super().__init__()
 
