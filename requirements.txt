@@ -1,3 +1,8 @@
-pytest
 torch
+torchvision
 gym
+atari_py
+opencv-python
+psutil
+pyprind
+rlpyt
