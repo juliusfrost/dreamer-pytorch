@@ -1,7 +1,7 @@
 # Dreamer PyTorch
 
 [![tests](https://github.com/juliusfrost/dreamer-pytorch/workflows/tests/badge.svg)](https://github.com/juliusfrost/dreamer-pytorch/actions)
-[![codecov](https://codecov.io/gh/juliusfrost/dreamer-pytorch/graph/badge.svg)](https://codecov.io/gh/juliusfrost/dreamer-pytorch)
+[![codecov](https://codecov.io/gh/juliusfrost/dreamer-pytorch/branch/master/graph/badge.svg?token=DN9RKIRS7C)](https://codecov.io/gh/juliusfrost/dreamer-pytorch)
 
 Dream to Control: Learning Behaviors by Latent Imagination
 
