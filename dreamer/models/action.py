@@ -38,6 +38,7 @@ class ActionDecoder(nn.Module):
 
     def forward(self, state_features):
         x = self.feedforward_model(state_features)
+        dist = None
         if self.dist == 'tanh_normal':
             mean, std = torch.chunk(x, 2, -1)
             mean = self.mean_scale * torch.tanh(mean / self.mean_scale)
@@ -48,6 +49,4 @@ class ActionDecoder(nn.Module):
             dist = SampleDist(dist)
         elif self.dist == 'one_hot':
             dist = torch.distributions.OneHotCategorical(logits=x)
-        else:
-            raise NotImplementedError(f'{self.dist} not implemented')
         return dist
