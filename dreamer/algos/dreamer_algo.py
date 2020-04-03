@@ -49,3 +49,15 @@ class Dreamer(RlAlgorithm):
 
     def optimize_agent(self, itr, samples=None, sampler_itr=None):
         pass
+
+    def loss(self):
+        return
+
+    def model_loss(self):
+        return
+
+    def agent_loss(self):
+        return
+
+    def value_loss(self):
+        return

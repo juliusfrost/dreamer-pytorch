@@ -17,4 +17,8 @@ class DreamerAgent(BaseAgent, RecurrentAgentMixin):
 
     @torch.no_grad()
     def step(self, observation, prev_action, prev_reward):
-        return
+        # get previous state according to the RecurrentAgentMixin
+        prev_state = None
+        state = self.model.get_state(observation, prev_action, prev_state)
+        action = self.model.policy(state)
+        return action

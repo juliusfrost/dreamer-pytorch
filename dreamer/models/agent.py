@@ -50,3 +50,7 @@ class AgentModel(nn.Module):
         else:
             action = action_dist.rsample()
         return action
+
+    def get_state(self, observation, prev_action, prev_state):
+        state = None
+        return state
