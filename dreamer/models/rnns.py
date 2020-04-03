@@ -16,6 +16,10 @@ def stack_states(rssm_states: list, dim):
     )
 
 
+def get_feat(rssm_state: RSSMState):
+    return torch.cat((rssm_state.stoch, rssm_state.deter), dim=-1)
+
+
 class TransitionBase(nn.Module):
     def __init__(self):
         super().__init__()
