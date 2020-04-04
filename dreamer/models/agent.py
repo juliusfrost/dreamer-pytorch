@@ -4,6 +4,7 @@ import torch.nn as nn
 from dreamer.models.rnns import RSSMState, RSSMRepresentation, RSSMTransition, RSSMRollout, get_feat
 from dreamer.models.observation import ObservationDecoder, ObservationEncoder
 from dreamer.models.action import ActionDecoder
+from dreamer.models.dense_model import DenseModel
 
 
 class AgentModel(nn.Module):
@@ -18,6 +19,12 @@ class AgentModel(nn.Module):
             action_hidden_size=200,
             action_layers=3,
             action_dist='tanh_normal',
+            reward_shape=1,
+            reward_layers=3,
+            reward_hidden=200,
+            value_shape=1,
+            value_layers=3,
+            value_hidden=200,
     ):
         super().__init__()
         self.transition = RSSMTransition(action_size, stochastic_size, deterministic_size, hidden_size)
@@ -29,6 +36,8 @@ class AgentModel(nn.Module):
         feature_size = stochastic_size + deterministic_size
         self.action_dist = action_dist
         self.action_decoder = ActionDecoder(action_size, feature_size, action_hidden_size, action_layers, action_dist)
+        self.reward_model = DenseModel(feature_size, reward_shape, reward_layers, reward_hidden)
+        self.value_model = DenseModel(feature_size, value_shape, value_layers, value_hidden)
 
     def forward(self, observation: torch.Tensor, prev_action: torch.Tensor, prev_state: RSSMState = None):
         obs_embed = self.observation_encoder(observation)
