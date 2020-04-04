@@ -19,10 +19,10 @@ class AgentModel(nn.Module):
             action_hidden_size=200,
             action_layers=3,
             action_dist='tanh_normal',
-            reward_shape=1,
+            reward_shape=(1,),
             reward_layers=3,
             reward_hidden=200,
-            value_shape=1,
+            value_shape=(1,),
             value_layers=3,
             value_hidden=200,
     ):
@@ -42,8 +42,10 @@ class AgentModel(nn.Module):
 
     def forward(self, observation: torch.Tensor, prev_action: torch.Tensor = None, prev_state: RSSMState = None):
         state = self.get_state_representation(observation, prev_action, prev_state)
-        action = self.policy(state)
-        return action
+        action, action_dist = self.policy(state)
+        value = self.value_model(get_feat(state))
+        reward = self.reward_model(get_feat(state))
+        return action, action_dist, value, reward, state
 
     def policy(self, state: RSSMState):
         feat = get_feat(state)
@@ -56,7 +58,7 @@ class AgentModel(nn.Module):
         else:
             # cannot propagate gradients with one hot distribution
             action = action_dist.sample()
-        return action
+        return action, action_dist
 
     def get_state_representation(self, observation: torch.Tensor, prev_action: torch.Tensor = None,
                                  prev_state: RSSMState = None):

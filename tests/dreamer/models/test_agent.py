@@ -1,5 +1,6 @@
-import torch
 import pytest
+import torch
+
 from dreamer.models.agent import AgentModel
 
 
@@ -18,11 +19,11 @@ def test_agent(dist):
     state = agent_model.get_state_representation(observation, prev_action, prev_state)
     assert state.deter.shape == (batch_size, deterministic_size)
 
-    action = agent_model.policy(state)
+    action, action_dist = agent_model.policy(state)
     assert action.shape == (batch_size, action_size)
 
     agent_model.eval()
-    eval_action = agent_model(observation, prev_action, prev_state)
+    eval_action, action_dist, value, reward, state = agent_model(observation, prev_action, prev_state)
     assert eval_action.shape == (batch_size, action_size)
 
     next_state = agent_model.get_state_transition(action, state)
