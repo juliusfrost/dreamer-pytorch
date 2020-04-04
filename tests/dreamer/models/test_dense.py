@@ -2,7 +2,7 @@ import pytest
 import torch
 import torch.nn as nn
 
-from dreamer.models.dense_model import DenseModel
+from dreamer.models.dense import DenseModel
 
 
 @pytest.mark.parametrize('dist', ['normal', 'binary'])
@@ -15,7 +15,7 @@ def test_dense_model(dist):
     features = torch.randn((batch_size, feature_size))
 
     try:
-        dense = DenseModel(feature_size, shape, layers, units, dist, nn.ELU())
+        dense = DenseModel(feature_size, shape, layers, units, dist)
     except NotImplementedError:
         return
 

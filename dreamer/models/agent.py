@@ -4,7 +4,7 @@ import torch.nn as nn
 from dreamer.models.rnns import RSSMState, RSSMRepresentation, RSSMTransition, RSSMRollout, get_feat
 from dreamer.models.observation import ObservationDecoder, ObservationEncoder
 from dreamer.models.action import ActionDecoder
-from dreamer.models.dense_model import DenseModel
+from dreamer.models.dense import DenseModel
 
 
 class AgentModel(nn.Module):

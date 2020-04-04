@@ -25,6 +25,7 @@ class ActionDecoder(nn.Module):
 
     def build_model(self):
         model = [nn.Linear(self.feature_size, self.hidden_size)]
+        model += [self.activation()]
         for i in range(1, self.layers):
             model += [nn.Linear(self.hidden_size, self.hidden_size)]
             model += [self.activation()]
