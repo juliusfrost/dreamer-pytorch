@@ -1,7 +1,7 @@
 from rlpyt.agents.dqn.atari.mixin import AtariMixin
 
 from dreamer.agents.dreamer_agent import DreamerAgent
-from dreamer.models.atari_dreamer_model import AtariDreamerModel
+from dreamer.models.agent import AtariDreamerModel
 
 
 class AtariDreamerAgent(AtariMixin, DreamerAgent):

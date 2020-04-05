@@ -25,6 +25,7 @@ class AgentModel(nn.Module):
             value_shape=(1,),
             value_layers=3,
             value_hidden=200,
+            **kwargs,
     ):
         super().__init__()
         self.transition = RSSMTransition(action_size, stochastic_size, deterministic_size, hidden_size)
@@ -88,3 +89,7 @@ class AgentModel(nn.Module):
         """
         state = self.transition(prev_action, prev_state)
         return state
+
+
+class AtariDreamerModel(AgentModel):
+    pass

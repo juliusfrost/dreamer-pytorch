@@ -11,8 +11,8 @@ DreamerAgentInfo = namedarraytuple('DreamerAgentInfo', ['value', 'reward', 'prev
 # see classes BaseAgent and RecurrentAgentMixin for documentation
 class DreamerAgent(BaseAgent, RecurrentAgentMixin):
 
-    def __init__(self, model_kwargs, initial_model_state_dict=None):
-        super().__init__(AgentModel, model_kwargs, initial_model_state_dict)
+    def __init__(self, ModelCls=AgentModel, model_kwargs=None, initial_model_state_dict=None):
+        super().__init__(ModelCls, model_kwargs, initial_model_state_dict)
 
     def make_env_to_model_kwargs(self, env_spaces):
         """Generate any keyword args to the model which depend on environment interfaces."""
