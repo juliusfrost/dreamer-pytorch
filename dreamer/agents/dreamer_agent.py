@@ -5,7 +5,7 @@ from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.buffer import buffer_to, buffer_func
 from dreamer.models.agent import AgentModel
 
-DreamerAgentInfo = namedarraytuple('DreamerAgentInfo', ['action_dist', 'value', 'reward', 'prev_state', 'state'])
+DreamerAgentInfo = namedarraytuple('DreamerAgentInfo', ['value', 'reward', 'prev_state', 'state'])
 
 
 # see classes BaseAgent and RecurrentAgentMixin for documentation
@@ -39,7 +39,7 @@ class DreamerAgent(BaseAgent, RecurrentAgentMixin):
         # Model handles None, but Buffer does not, make zeros if needed:
         prev_state = self.prev_rnn_state or buffer_func(state, torch.zeros_like)
         self.advance_rnn_state(state)
-        agent_info = DreamerAgentInfo(action_dist, value, reward, prev_state, state)
+        agent_info = DreamerAgentInfo(value, reward, prev_state, state)
         action, agent_info = buffer_to((action, agent_info), device="cpu")
         return AgentStep(action=action, agent_info=agent_info)
 
