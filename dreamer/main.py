@@ -33,8 +33,8 @@ def build_and_train(game="pong", run_ID=0, cuda_idx=None):
         affinity=dict(cuda_idx=cuda_idx),
     )
     config = dict(game=game)
-    name = "dqn_" + game
-    log_dir = "example_1"
+    name = "dreamer_" + game
+    log_dir = "data/dreamer/"
     with logger_context(log_dir, run_ID, name, config, snapshot_mode="last"):
         runner.train()
 

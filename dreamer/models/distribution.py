@@ -33,7 +33,7 @@ class TanhBijector(torch.distributions.Transform):
 class SampleDist:
 
     def __init__(self, dist: torch.distributions.Distribution, samples=100):
-        self._dist = dist.expand((samples, *dist.batch_shape))
+        self._dist = dist
         self._samples = samples
 
     @property
@@ -44,21 +44,27 @@ class SampleDist:
         return getattr(self._dist, name)
 
     def mean(self):
-        sample = self._dist.rsample()
+        dist = self._dist.expand((self._samples, *self._dist.batch_shape))
+        sample = dist.rsample()
         return torch.mean(sample, 0)
 
     def mode(self):
-        sample = self._dist.rsample()
-        logprob = self._dist.log_prob(sample)
+        dist = self._dist.expand((self._samples, *self._dist.batch_shape))
+        sample = dist.rsample()
+        logprob = dist.log_prob(sample)
         batch_size = sample.size(1)
         feature_size = sample.size(2)
         indices = torch.argmax(logprob, dim=0).reshape(1, batch_size, 1).expand(1, batch_size, feature_size)
         return torch.gather(sample, 0, indices).squeeze(0)
 
     def entropy(self):
-        sample = self._dist.rsample()
-        logprob = self._dist.log_prob(sample)
+        dist = self._dist.expand((self._samples, *self._dist.batch_shape))
+        sample = dist.rsample()
+        logprob = dist.log_prob(sample)
         return -torch.mean(logprob, 0)
+
+    def sample(self):
+        return self._dist.sample()
 
 
 def atanh(x):

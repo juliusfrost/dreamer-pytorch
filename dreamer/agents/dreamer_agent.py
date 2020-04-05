@@ -3,6 +3,7 @@ import torch
 from rlpyt.agents.base import BaseAgent, RecurrentAgentMixin, AgentStep
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.buffer import buffer_to, buffer_func
+from rlpyt.utils.tensor import infer_leading_dims, restore_leading_dims, to_onehot
 from dreamer.models.agent import AgentModel
 
 DreamerAgentInfo = namedarraytuple('DreamerAgentInfo', ['value', 'reward', 'prev_state', 'state'])
@@ -32,10 +33,7 @@ class DreamerAgent(RecurrentAgentMixin, BaseAgent):
         (no grad)
         """
         model_inputs = buffer_to((observation, prev_action), device=self.device)
-        state = self.model.get_state_representation(*model_inputs, self.prev_rnn_state)
-        value = self.model.value_model(state)
-        reward = self.model.reward_model(state)
-        action, action_dist = self.model.policy(state)
+        action, value, reward, prev_state, state = self.model(*model_inputs, self.prev_rnn_state)
         # Model handles None, but Buffer does not, make zeros if needed:
         prev_state = self.prev_rnn_state or buffer_func(state, torch.zeros_like)
         self.advance_rnn_state(state)

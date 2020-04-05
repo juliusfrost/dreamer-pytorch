@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 
+from rlpyt.utils.tensor import infer_leading_dims, restore_leading_dims, to_onehot, from_onehot
+from rlpyt.utils.buffer import buffer_func
+
 from dreamer.models.rnns import RSSMState, RSSMRepresentation, RSSMTransition, RSSMRollout, get_feat
 from dreamer.models.observation import ObservationDecoder, ObservationEncoder
 from dreamer.models.action import ActionDecoder
@@ -15,7 +18,7 @@ class AgentModel(nn.Module):
             deterministic_size=200,
             hidden_size=200,
             obs_embed_size=1024,
-            obs_shape=(3, 64, 64),
+            image_shape=(3, 64, 64),
             action_hidden_size=200,
             action_layers=3,
             action_dist='tanh_normal',
@@ -25,21 +28,26 @@ class AgentModel(nn.Module):
             value_shape=(1,),
             value_layers=3,
             value_hidden=200,
+            dtype=torch.float,
             **kwargs,
     ):
         super().__init__()
+        self.observation_encoder = ObservationEncoder(shape=image_shape)
+        # calculate embedding size from forward pass
+        with torch.no_grad():
+            obs_embed_size = self.observation_encoder(torch.zeros(1, *image_shape)).size(-1)
+        self.observation_decoder = ObservationDecoder(embed_size=obs_embed_size, shape=image_shape)
         self.transition = RSSMTransition(output_size, stochastic_size, deterministic_size, hidden_size)
         self.representation = RSSMRepresentation(self.transition, obs_embed_size, output_size, stochastic_size,
                                                  deterministic_size, hidden_size)
         self.rollout = RSSMRollout(self.representation, self.transition)
-        self.observation_decoder = ObservationDecoder(embed_size=obs_embed_size, shape=obs_shape)
-        self.observation_encoder = ObservationEncoder()
         feature_size = stochastic_size + deterministic_size
         self.action_size = output_size
         self.action_dist = action_dist
         self.action_decoder = ActionDecoder(output_size, feature_size, action_hidden_size, action_layers, action_dist)
         self.reward_model = DenseModel(feature_size, reward_shape, reward_layers, reward_hidden)
         self.value_model = DenseModel(feature_size, value_shape, value_layers, value_hidden)
+        self.dtype = dtype
 
     def forward(self, observation: torch.Tensor, prev_action: torch.Tensor = None, prev_state: RSSMState = None):
         state = self.get_state_representation(observation, prev_action, prev_state)
@@ -53,7 +61,7 @@ class AgentModel(nn.Module):
         action_dist = self.action_decoder(feat)
         if self.action_dist == 'tanh_normal':
             if self.training:  # use agent.train(bool) or agent.eval()
-                action = action_dist.mean()
+                action = action_dist.sample()
             else:
                 action = action_dist.mode()
         else:
@@ -90,6 +98,26 @@ class AgentModel(nn.Module):
         state = self.transition(prev_action, prev_state)
         return state
 
+    def forward(self, observation: torch.Tensor, prev_action: torch.Tensor = None, prev_state: RSSMState = None):
+        action, value, reward, prev_state, state = (None, None, None, None, None)
+        return_spec = (action, value, reward, prev_state, state)
+        raise NotImplementedError()
+
 
 class AtariDreamerModel(AgentModel):
-    pass
+    def forward(self, observation: torch.Tensor, prev_action: torch.Tensor = None, prev_state: RSSMState = None):
+        lead_dim, T, B, img_shape = infer_leading_dims(observation, 3)
+        observation = observation.reshape(T * B, *img_shape).type(self.dtype) / 255.0 - 0.5
+        prev_action = to_onehot(prev_action.reshape(T * B, ), self.action_size, dtype=self.dtype)
+        if prev_state is None:
+            prev_state = self.representation.initial_state(prev_action.size(0), device=prev_action.device,
+                                                           dtype=self.dtype)
+        state = self.get_state_representation(observation, prev_action, prev_state)
+        value_dist = self.value_model(get_feat(state))
+        reward_dist = self.reward_model(get_feat(state))
+        value, reward = value_dist.sample(), reward_dist.sample()
+        action, action_dist = self.policy(state)
+        action = from_onehot(action)
+        return_spec = (action, value, reward, prev_state, state)
+        return_spec = buffer_func(return_spec, restore_leading_dims, lead_dim, T, B)
+        return return_spec

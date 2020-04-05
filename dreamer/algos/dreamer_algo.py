@@ -1,4 +1,5 @@
 import torch
+import torch.optim as optim
 
 from dreamer.models.rnns import RSSMState
 
@@ -37,6 +38,9 @@ class Dreamer(RlAlgorithm):
         del batch_size  # Property.
         save__init__args(locals())
         self.update_counter = 0
+        # dummy model parameters
+        self.model_params = (torch.zeros(0, requires_grad=True),)
+        self.optimizer = optim.Adam(self.model_params)
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples, world_size=1, rank=0):
         pass

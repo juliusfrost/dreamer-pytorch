@@ -17,4 +17,4 @@ def test_dist():
     dist = SampleDist(dist, samples)
     name = dist.name
     assert dist.event_shape == (dist_size,)
-    assert dist.batch_shape == (samples, batch_size)
+    assert dist.batch_shape == (batch_size,)
