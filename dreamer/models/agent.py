@@ -10,7 +10,7 @@ from dreamer.models.dense import DenseModel
 class AgentModel(nn.Module):
     def __init__(
             self,
-            action_size,
+            output_size,
             stochastic_size=30,
             deterministic_size=200,
             hidden_size=200,
@@ -28,16 +28,16 @@ class AgentModel(nn.Module):
             **kwargs,
     ):
         super().__init__()
-        self.transition = RSSMTransition(action_size, stochastic_size, deterministic_size, hidden_size)
-        self.representation = RSSMRepresentation(self.transition, obs_embed_size, action_size, stochastic_size,
+        self.transition = RSSMTransition(output_size, stochastic_size, deterministic_size, hidden_size)
+        self.representation = RSSMRepresentation(self.transition, obs_embed_size, output_size, stochastic_size,
                                                  deterministic_size, hidden_size)
         self.rollout = RSSMRollout(self.representation, self.transition)
         self.observation_decoder = ObservationDecoder(embed_size=obs_embed_size, shape=obs_shape)
         self.observation_encoder = ObservationEncoder()
         feature_size = stochastic_size + deterministic_size
-        self.action_size = action_size
+        self.action_size = output_size
         self.action_dist = action_dist
-        self.action_decoder = ActionDecoder(action_size, feature_size, action_hidden_size, action_layers, action_dist)
+        self.action_decoder = ActionDecoder(output_size, feature_size, action_hidden_size, action_layers, action_dist)
         self.reward_model = DenseModel(feature_size, reward_shape, reward_layers, reward_hidden)
         self.value_model = DenseModel(feature_size, value_shape, value_layers, value_hidden)
 

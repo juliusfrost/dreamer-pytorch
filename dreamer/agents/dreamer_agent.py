@@ -9,7 +9,7 @@ DreamerAgentInfo = namedarraytuple('DreamerAgentInfo', ['value', 'reward', 'prev
 
 
 # see classes BaseAgent and RecurrentAgentMixin for documentation
-class DreamerAgent(BaseAgent, RecurrentAgentMixin):
+class DreamerAgent(RecurrentAgentMixin, BaseAgent):
 
     def __init__(self, ModelCls=AgentModel, model_kwargs=None, initial_model_state_dict=None):
         super().__init__(ModelCls, model_kwargs, initial_model_state_dict)
