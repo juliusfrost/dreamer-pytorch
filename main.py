@@ -1,15 +1,16 @@
-from rlpyt.samplers.serial.sampler import SerialSampler
+import datetime
+import os
+
 from rlpyt.envs.atari.atari_env import AtariEnv, AtariTrajInfo
-# from rlpyt.algos.dqn.dqn import DQN
-# from rlpyt.agents.dqn.atari.atari_dqn_agent import AtariDqnAgent
-from rlpyt.runners.minibatch_rl import MinibatchRlEval
+from rlpyt.runners.minibatch_rl import MinibatchRlEval, MinibatchRl
+from rlpyt.samplers.serial.sampler import SerialSampler
 from rlpyt.utils.logging.context import logger_context
 
-from dreamer.algos.dreamer_algo import Dreamer
 from dreamer.agents.atari_dreamer_agent import AtariDreamerAgent
+from dreamer.algos.dreamer_algo import Dreamer
 
 
-def build_and_train(game="pong", run_ID=0, cuda_idx=None):
+def build_and_train(log_dir, game="pong", run_ID=0, cuda_idx=None, eval=False):
     sampler = SerialSampler(
         EnvCls=AtariEnv,
         TrajInfoCls=AtariTrajInfo,  # default traj info + GameScore
@@ -24,7 +25,8 @@ def build_and_train(game="pong", run_ID=0, cuda_idx=None):
     )
     algo = Dreamer()  # Run with defaults.
     agent = AtariDreamerAgent()
-    runner = MinibatchRlEval(
+    runner_cls = MinibatchRlEval if eval else MinibatchRl
+    runner = runner_cls(
         algo=algo,
         agent=agent,
         sampler=sampler,
@@ -34,8 +36,8 @@ def build_and_train(game="pong", run_ID=0, cuda_idx=None):
     )
     config = dict(game=game)
     name = "dreamer_" + game
-    log_dir = "data/dreamer/"
-    with logger_context(log_dir, run_ID, name, config, snapshot_mode="last"):
+    with logger_context(log_dir, run_ID, name, config, snapshot_mode="last", override_prefix=True,
+                        use_summary_writer=True):
         runner.train()
 
 
@@ -44,10 +46,18 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--game', help='Atari game', default='pong')
-    parser.add_argument('--run_ID', help='run identifier (logging)', type=int, default=0)
-    parser.add_argument('--cuda_idx', help='gpu to use ', type=int, default=None)
+    parser.add_argument('--run-ID', help='run identifier (logging)', type=int, default=0)
+    parser.add_argument('--cuda-idx', help='gpu to use ', type=int, default=None)
+    default_log_dir = os.path.join(
+        os.path.dirname(__file__),
+        'data',
+        'local',
+        datetime.datetime.now().strftime("%Y%m%d"))
+    parser.add_argument('--log-dir', type=str, default=default_log_dir)
     args = parser.parse_args()
+    log_dir = os.path.abspath(args.log_dir)
     build_and_train(
+        log_dir,
         game=args.game,
         run_ID=args.run_ID,
         cuda_idx=args.cuda_idx,
