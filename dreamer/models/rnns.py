@@ -19,6 +19,9 @@ def stack_states(rssm_states: list, dim):
 def get_feat(rssm_state: RSSMState):
     return torch.cat((rssm_state.stoch, rssm_state.deter), dim=-1)
 
+def get_dist(rssm_state: RSSMState):
+    return td.Normal(rssm_state.mean, rssm_state.std)
+
 
 class TransitionBase(nn.Module):
     def __init__(self):
@@ -187,7 +190,7 @@ class RSSMRollout(RollOutModule):
         actions = []
         for t in range(steps):
             state = self.transition_model(action, state)
-            action = policy(state)
+            action, _ = policy(state)
             priors.append(state)
             actions.append(action)
         priors = stack_states(priors, dim=1)

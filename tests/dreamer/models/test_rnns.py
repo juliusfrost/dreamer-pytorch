@@ -1,6 +1,7 @@
 import torch
 
 from dreamer.models.rnns import RSSMState, RSSMTransition, RSSMRepresentation, RSSMRollout
+from dreamer.models.distribution import SampleDist
 
 
 def test_rssm():
@@ -63,7 +64,11 @@ def test_rollouts():
     assert prior.deter.shape == (batch_size, time_steps, deterministic_size)
 
     def policy(state):
-        return torch.randn(state.stoch.size(0), action_size)
+        action = torch.randn(state.stoch.size(0), action_size)
+        mean = torch.randn(state.stoch.size(0), action_size)
+        std = torch.randn(state.stoch.size(0), action_size)
+        action_dist = SampleDist(mean, std)
+        return action, action_dist
 
     prev_action = torch.randn(batch_size, action_size)
     prior, actions = rollout_module.rollout_policy(time_steps, policy, prev_action,
