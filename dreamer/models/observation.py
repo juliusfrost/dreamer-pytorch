@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.distributions as td
 import torch.nn as nn
@@ -18,20 +19,10 @@ class ObservationEncoder(nn.Module):
         )
 
     def forward(self, obs):
-        # If we have 2 batch dimensions (batch and time), temporarily flatten the vector #TODO: test
-        if len(obs.shape) == 5:
-            double_batch = True
-            batch_x, batch_t, c, h, w = obs.shape
-            obs = obs.reshape(batch_x * batch_t, c, h, w)
-        else:
-            double_batch = False
-
-        embed = self.convolutions(obs)
-        embed = torch.reshape(embed, (embed.size(0), -1))
-
-        if double_batch:
-            embed = embed.reshape(batch_x, batch_t, -1)
-
+        batch_shape = obs.shape[:-3]
+        img_shape = obs.shape[-3:]
+        embed = self.convolutions(obs.reshape(-1, *img_shape))
+        embed = torch.reshape(embed, (*batch_shape, -1))
         return embed
 
 
@@ -54,21 +45,17 @@ class ObservationDecoder(nn.Module):
         self.distribution = distribution
 
     def forward(self, x):
-
-        # If we have 2 batch dimensions (batch and time), temporarily flatten the vector
-        if len(x.shape) == 3:
-            double_batch = True
-            batch_x, batch_t, x_dim = x.shape
-            x = x.reshape(batch_x * batch_t, x_dim)
-        else:
-            double_batch = False
-
+        """
+        :param x: size(*batch_shape, embed_size)
+        :return: obs_dist = size(*batch_shape, *self.shape)
+        """
+        batch_shape = x.shape[:-1]
+        embed_size = x.shape[-1]
+        squeezed_size = np.prod(batch_shape).item()
+        x = x.reshape(squeezed_size, embed_size)
         x = self.linear(x)
-        x = torch.reshape(x, (-1, 32 * self.depth, 1, 1))
+        x = torch.reshape(x, (squeezed_size, 32 * self.depth, 1, 1))
         x = self.decoder(x)
-        mean = torch.reshape(x, (x.size(0), *self.shape))
-
-        if double_batch:
-            mean = x.reshape(batch_x, batch_t, *self.shape)
-
-        return self.distribution(mean, 1)
+        mean = torch.reshape(x, (*batch_shape, *self.shape))
+        obs_dist = self.distribution(mean, 1)
+        return obs_dist
