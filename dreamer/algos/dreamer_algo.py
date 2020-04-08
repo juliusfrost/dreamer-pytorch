@@ -1,6 +1,6 @@
 import torch
 import torch.optim as optim
-from rlpyt.utils.tensor import to_onehot
+from rlpyt.utils.tensor import to_onehot, infer_leading_dims, restore_leading_dims
 
 from dreamer.models.rnns import get_feat, get_dist, RSSMState
 
@@ -35,6 +35,7 @@ class Dreamer(RlAlgorithm):
             optim_kwargs=None,
             free_nats=3,  # TODO: Do we actually need this??
             kl_scale=1,
+            type=torch.float,
     ):
         super().__init__()
 
@@ -45,6 +46,7 @@ class Dreamer(RlAlgorithm):
         # dummy model parameters
         self.model_params = (torch.zeros(0, requires_grad=True),)
         self.optimizer = optim.Adam(self.model_params)
+        self.type = type
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples, world_size=1, rank=0):
         self.agent = agent
@@ -71,37 +73,47 @@ class Dreamer(RlAlgorithm):
         # Extract tensors from the Samples object
         # They all have the batch_t dimension first, but we'll put the batch_b dimension first.
         # Also, we convert all tensors to floats so they can be fed into our models.
-        observation = samples.env.observation.permute(1, 0, 2, 3, 4).float()  # Tensor of shape [INSERT]
-        action = samples.agent.action.float()
-        # Make actions one-hot
-        if len(action.shape) == 2:
-            action = to_onehot(action, model.action_size)
-        action = action.permute(1, 0, 2)
-        reward = samples.agent.agent_info.reward.permute(1, 0, 2)  # TODO: this or env_reward?
 
-        # Useful lengths
-        batch_b = len(action)
-        batch_t = len(action[0])
+        lead_dim, batch_t, batch_b, img_shape = infer_leading_dims(samples.env.observation, 3)
+        # squeeze batch sizes to single batch dimension for imagination roll-out
+        batch_size = batch_t * batch_b
 
+        observation = samples.env.observation
+        # normalize image
+        observation = observation.type(self.type) / 255.0 - 0.5
+        # embed the image
         embed = model.observation_encoder(observation)
-        # Rollout model by taking the same series of actions as the real model
+
+        # get action
+        action = samples.agent.action
+        # make actions one-hot
+        action = to_onehot(action, model.action_size, dtype=self.type)
+
+        reward = samples.agent.agent_info.reward  # TODO: this or env_reward?
+
+        # if we want to continue the the agent state from the previous time steps, we can do it like so:
+        # prev_state = samples.agent.agent_info.prev_state[0]
+        # But in this case, the agent won't learn to generate a prior distribution of states.
+        # So in the paper, we pick an initial state representation of zero.
+        # But I hypothesize an alternating method might help if batch_t is too small.
         prev_state = model.representation.initial_state(batch_b)
+        # Rollout model by taking the same series of actions as the real model
         post, prior = model.rollout.rollout_representation(batch_t, embed, action, prev_state)
-        # Flatten our data (so first dimension is batch_b * batch_b)
+        # Flatten our data (so first dimension is batch_t * batch_b = batch_size)
         # since we're going to do a new rollout starting from each state visited in each batch.
         flat_post = RSSMState(
-            mean=post.mean.reshape(batch_b * batch_t, -1),
-            std=post.std.reshape(batch_b * batch_t, -1),
-            stoch=post.stoch.reshape(batch_b * batch_t, -1),
-            deter=post.deter.reshape(batch_b * batch_t, -1)
+            mean=post.mean.reshape(batch_size, -1),
+            std=post.std.reshape(batch_size, -1),
+            stoch=post.stoch.reshape(batch_size, -1),
+            deter=post.deter.reshape(batch_size, -1)
         )
-        flat_action = action.reshape(batch_b * batch_t, -1)
+        flat_action = action.reshape(batch_size, -1)
         # Rollout the policy for self.horizon steps. Variable names with imag_ indicate this data is imagined not real.
-        # imag_feat shape is [batch_t * batch_b, horizon, feature_size]
+        # imag_feat shape is [horizon, batch_t * batch_b, feature_size]
         imag_dist, _ = model.rollout.rollout_policy(self.horizon, model.policy, flat_action, flat_post)
 
         # Use state features (deterministic and stochastic) to predict the image and reward
-        imag_feat = get_feat(imag_dist).permute(1, 0, 2)  # [horizon, batch_t * batch_b, feature_size]
+        imag_feat = get_feat(imag_dist)  # [horizon, batch_t * batch_b, feature_size]
         # Assumes these are normal distributions. In the TF code it's be mode, but for a normal distribution mean = mode
         # If we want to use other distributions we'll have to fix this.
         imag_reward = model.reward_model(imag_feat).mean

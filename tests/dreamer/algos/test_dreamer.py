@@ -31,13 +31,14 @@ def test_loss():
     batch_t = 4
     stoch_state_dim = 3
     deter_state_dim = 4
-    action_dim = 1
+    action_size = 3
     img_size = (3, 64, 64)  # TODO: figure out why atari games have 4 channels.
 
-    dreamer = make_dreamer(action_dim)
+    dreamer = make_dreamer(action_size)
 
-    action = torch.randn(batch_t, batch_b, action_dim)
-    prev_action = torch.randn(batch_t, batch_b, action_dim)
+    # categorical action tensor
+    action = torch.randint(action_size, (batch_t, batch_b))
+    prev_action = torch.randn(batch_t, batch_b, action_size)
     observation = torch.randn(batch_t, batch_b, *img_size)
     env_reward = torch.randn(batch_t, batch_b)
     prev_reward = torch.randn(batch_t, batch_b)
