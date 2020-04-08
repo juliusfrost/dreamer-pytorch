@@ -34,6 +34,18 @@ def test_observation_decoder():
     assert obs_sample.size(2) == width
     assert obs_sample.size(3) == height
 
+    # Test a version where we have 2 batch dimensions
+    horizon = 4
+    embedding = torch.randn(batch_size, horizon, 1024)
+    with torch.no_grad():
+        obs_dist: torch.distributions.Normal = decoder(embedding)
+    obs_sample: torch.Tensor = obs_dist.sample()
+    assert obs_sample.size(0) == batch_size
+    assert obs_sample.size(1) == horizon
+    assert obs_sample.size(2) == channels
+    assert obs_sample.size(3) == width
+    assert obs_sample.size(4) == height
+
 
 def test_observation():
     batch_size = 2

@@ -35,10 +35,11 @@ class AgentModel(nn.Module):
         self.observation_encoder = ObservationEncoder(shape=image_shape)
         # calculate embedding size from forward pass
         with torch.no_grad():
-            obs_embed_size = self.observation_encoder(torch.zeros(1, *image_shape)).size(-1)
-        self.observation_decoder = ObservationDecoder(embed_size=obs_embed_size, shape=image_shape)
+            encoder_embed_size = self.observation_encoder(torch.zeros(1, *image_shape)).size(-1)
+            decoder_embed_size = stochastic_size + deterministic_size
+        self.observation_decoder = ObservationDecoder(embed_size=decoder_embed_size, shape=image_shape)
         self.transition = RSSMTransition(output_size, stochastic_size, deterministic_size, hidden_size)
-        self.representation = RSSMRepresentation(self.transition, obs_embed_size, output_size, stochastic_size,
+        self.representation = RSSMRepresentation(self.transition, encoder_embed_size, output_size, stochastic_size,
                                                  deterministic_size, hidden_size)
         self.rollout = RSSMRollout(self.representation, self.transition)
         feature_size = stochastic_size + deterministic_size
@@ -48,6 +49,8 @@ class AgentModel(nn.Module):
         self.reward_model = DenseModel(feature_size, reward_shape, reward_layers, reward_hidden)
         self.value_model = DenseModel(feature_size, value_shape, value_layers, value_hidden)
         self.dtype = dtype
+        self.stochastic_size = stochastic_size
+        self.deterministic_size = deterministic_size
 
     def forward(self, observation: torch.Tensor, prev_action: torch.Tensor = None, prev_state: RSSMState = None):
         state = self.get_state_representation(observation, prev_action, prev_state)

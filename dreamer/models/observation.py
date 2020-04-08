@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.distributions as td
 import torch.nn as nn
@@ -18,8 +19,11 @@ class ObservationEncoder(nn.Module):
         )
 
     def forward(self, obs):
-        embed = self.convolutions(obs)
-        return torch.reshape(embed, (embed.size(0), -1))
+        batch_shape = obs.shape[:-3]
+        img_shape = obs.shape[-3:]
+        embed = self.convolutions(obs.reshape(-1, *img_shape))
+        embed = torch.reshape(embed, (*batch_shape, -1))
+        return embed
 
 
 class ObservationDecoder(nn.Module):
@@ -41,8 +45,17 @@ class ObservationDecoder(nn.Module):
         self.distribution = distribution
 
     def forward(self, x):
+        """
+        :param x: size(*batch_shape, embed_size)
+        :return: obs_dist = size(*batch_shape, *self.shape)
+        """
+        batch_shape = x.shape[:-1]
+        embed_size = x.shape[-1]
+        squeezed_size = np.prod(batch_shape).item()
+        x = x.reshape(squeezed_size, embed_size)
         x = self.linear(x)
-        x = torch.reshape(x, (-1, 32 * self.depth, 1, 1))
+        x = torch.reshape(x, (squeezed_size, 32 * self.depth, 1, 1))
         x = self.decoder(x)
-        mean = torch.reshape(x, (x.size(0), *self.shape))
-        return self.distribution(mean, 1)
+        mean = torch.reshape(x, (*batch_shape, *self.shape))
+        obs_dist = self.distribution(mean, 1)
+        return obs_dist

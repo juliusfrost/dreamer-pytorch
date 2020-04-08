@@ -20,6 +20,10 @@ def get_feat(rssm_state: RSSMState):
     return torch.cat((rssm_state.stoch, rssm_state.deter), dim=-1)
 
 
+def get_dist(rssm_state: RSSMState):
+    return td.Normal(rssm_state.mean, rssm_state.std)
+
+
 class TransitionBase(nn.Module):
     def __init__(self):
         super().__init__()
@@ -142,36 +146,36 @@ class RSSMRollout(RollOutModule):
         """
         Roll out the model with actions and observations from data.
         :param steps: number of steps to roll out
-        :param obs_embed: size(batch_size, time_steps, embedding_size)
-        :param action: size(batch_size, time_steps, action_size)
+        :param obs_embed: size(time_steps, batch_size, embedding_size)
+        :param action: size(time_steps, batch_size, action_size)
         :param prev_state: RSSM state, size(batch_size, state_size)
-        :return: prior, posterior states. size(batch_size, time_steps, state_size)
+        :return: prior, posterior states. size(time_steps, batch_size, state_size)
         """
         priors = []
         posteriors = []
         for t in range(steps):
-            prior_state, posterior_state = self.representation_model(obs_embed[:, t], action[:, t], prev_state)
+            prior_state, posterior_state = self.representation_model(obs_embed[t], action[t], prev_state)
             priors.append(prior_state)
             posteriors.append(posterior_state)
             prev_state = posterior_state
-        prior = stack_states(priors, dim=1)
-        post = stack_states(posteriors, dim=1)
+        prior = stack_states(priors, dim=0)
+        post = stack_states(posteriors, dim=0)
         return prior, post
 
     def rollout_transition(self, steps: int, action: torch.Tensor, prev_state: RSSMState):
         """
         Roll out the model with actions from data.
         :param steps: number of steps to roll out
-        :param action: size(batch_size, time_steps, action_size)
+        :param action: size(time_steps, batch_size, action_size)
         :param prev_state: RSSM state, size(batch_size, state_size)
-        :return: prior states. size(batch_size, time_steps, state_size)
+        :return: prior states. size(time_steps, batch_size, state_size)
         """
         priors = []
         state = prev_state
         for t in range(steps):
-            state = self.transition_model(action[:, t], state)
+            state = self.transition_model(action[t], state)
             priors.append(state)
-        return stack_states(priors, dim=1)
+        return stack_states(priors, dim=0)
 
     def rollout_policy(self, steps: int, policy, prev_action: torch.Tensor, prev_state: RSSMState):
         """
@@ -180,16 +184,17 @@ class RSSMRollout(RollOutModule):
         :param policy: RSSMState -> action
         :param prev_action: size(batch_size, action_size)
         :param prev_state: RSSM state, size(batch_size, state_size)
-        :return: prior, posterior states. size(batch_size, time_steps, state_size)
+        :return: prior states size(time_steps, batch_size, state_size),
+                 actions size(time_steps, batch_size, action_size)
         """
         state, action = prev_state, prev_action
         priors = []
         actions = []
         for t in range(steps):
             state = self.transition_model(action, state)
-            action = policy(state)
+            action, _ = policy(state)
             priors.append(state)
             actions.append(action)
-        priors = stack_states(priors, dim=1)
-        actions = torch.stack(actions, dim=1)
+        priors = stack_states(priors, dim=0)
+        actions = torch.stack(actions, dim=0)
         return priors, actions
