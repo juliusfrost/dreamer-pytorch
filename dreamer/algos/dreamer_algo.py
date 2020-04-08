@@ -69,7 +69,7 @@ class Dreamer(RlAlgorithm):
         model = self.agent.model
 
         # Extract tensors from the Samples object
-        # They all have the batch_t dimension first, but we'll put the batch_x dimension first.
+        # They all have the batch_t dimension first, but we'll put the batch_b dimension first.
         # Also, we convert all tensors to floats so they can be fed into our models.
         observation = samples.env.observation.permute(1, 0, 2, 3, 4).float()  # Tensor of shape [INSERT]
         action = samples.agent.action.float()
@@ -80,31 +80,30 @@ class Dreamer(RlAlgorithm):
         reward = samples.agent.agent_info.reward.permute(1, 0, 2)  # TODO: this or env_reward?
 
         # Useful lengths
-        batch_x = len(action)
+        batch_b = len(action)
         batch_t = len(action[0])
 
         embed = model.observation_encoder(observation)
         # Rollout model by taking the same series of actions as the real model
-        prev_state = model.representation.initial_state(batch_x)
+        prev_state = model.representation.initial_state(batch_b)
         post, prior = model.rollout.rollout_representation(batch_t, embed, action, prev_state)
-        # Flatten our data (so first dimension is batch_x * batch_x)
+        # Flatten our data (so first dimension is batch_b * batch_b)
         # since we're going to do a new rollout starting from each state visited in each batch.
         flat_post = RSSMState(
-            mean=post.mean.reshape(batch_x * batch_t, -1),
-            std=post.std.reshape(batch_x * batch_t, -1),
-            stoch=post.stoch.reshape(batch_x * batch_t, -1),
-            deter=post.deter.reshape(batch_x * batch_t, -1)
+            mean=post.mean.reshape(batch_b * batch_t, -1),
+            std=post.std.reshape(batch_b * batch_t, -1),
+            stoch=post.stoch.reshape(batch_b * batch_t, -1),
+            deter=post.deter.reshape(batch_b * batch_t, -1)
         )
-        flat_action = action.reshape(batch_x * batch_t, -1)
-        # Rollout the policy for self.horizon steps. Variable names with imag_ indicate this data is imagined not real.# TODO: action vs prev_action?
-        # imag_feat shape is [batch_t * batch_x, horizon, feature_size]
+        flat_action = action.reshape(batch_b * batch_t, -1)
+        # Rollout the policy for self.horizon steps. Variable names with imag_ indicate this data is imagined not real.
+        # imag_feat shape is [batch_t * batch_b, horizon, feature_size]
         imag_dist, _ = model.rollout.rollout_policy(self.horizon, model.policy, flat_action, flat_post)
 
         # Use state features (deterministic and stochastic) to predict the image and reward
-        imag_feat = get_feat(imag_dist).permute(1, 0, 2)  # [horizon, batch_t * batch_x, feature_size]
+        imag_feat = get_feat(imag_dist).permute(1, 0, 2)  # [horizon, batch_t * batch_b, feature_size]
         # Assumes these are normal distributions. In the TF code it's be mode, but for a normal distribution mean = mode
         # If we want to use other distributions we'll have to fix this.
-        temp = model.reward_model(imag_feat)
         imag_reward = model.reward_model(imag_feat).mean
         value = model.value_model(imag_feat).mean
 
@@ -120,7 +119,7 @@ class Dreamer(RlAlgorithm):
         value_loss = self.value_loss(imag_feat, discount, returns)
         return self.model_lr * model_loss + self.actor_lr * actor_loss + self.value_lr * value_loss
 
-    def model_loss(self, observation: torch.FloatTensor, prior: RSSMState, post: RSSMState, reward: torch.FloatTensor):
+    def model_loss(self, observation: torch.Tensor, prior: RSSMState, post: RSSMState, reward: torch.Tensor):
         """
         Compute the model loss for a bunch of data. All vectors are [batch_t, batch_x, vector_dim]
         """
@@ -137,7 +136,6 @@ class Dreamer(RlAlgorithm):
         model_loss = self.kl_scale * div + reward_loss + image_loss
         return model_loss
 
-
     def compute_return(self,
                        reward: torch.Tensor,
                        value: torch.Tensor,
@@ -151,7 +149,7 @@ class Dreamer(RlAlgorithm):
         """
         next_values = torch.cat([value[1:], bootstrap[None]], 0)
         target = reward + discount * next_values * (1 - lambda_)
-        timesteps = list(range(len(reward) - 1, -1, -1))
+        timesteps = list(range(reward.shape[0] - 1, -1, -1))
         outputs = []
         accumulated_reward = bootstrap
         for t in timesteps:
@@ -162,15 +160,14 @@ class Dreamer(RlAlgorithm):
         returns = torch.flip(torch.stack(outputs), [0])
         return returns
 
-
-    def actor_loss(self, discount: torch.FloatTensor, returns: torch.FloatTensor):
+    def actor_loss(self, discount: torch.Tensor, returns: torch.Tensor):
         """
         Compute loss for the agent/actor model. All vectors are [batch, horizon]
         """
         actor_loss = -torch.mean(discount * returns)
         return actor_loss
 
-    def value_loss(self, imag_feat: torch.FloatTensor, discount: torch.FloatTensor, returns: torch.FloatTensor):
+    def value_loss(self, imag_feat: torch.Tensor, discount: torch.Tensor, returns: torch.Tensor):
         """
         Compute loss for the value model. All vectors are [batch, horizon, vector_dim]
         """

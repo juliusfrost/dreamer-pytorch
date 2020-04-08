@@ -19,6 +19,7 @@ def stack_states(rssm_states: list, dim):
 def get_feat(rssm_state: RSSMState):
     return torch.cat((rssm_state.stoch, rssm_state.deter), dim=-1)
 
+
 def get_dist(rssm_state: RSSMState):
     return td.Normal(rssm_state.mean, rssm_state.std)
 

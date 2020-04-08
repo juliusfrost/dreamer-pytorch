@@ -47,7 +47,6 @@ def test_observation_decoder():
     assert obs_sample.size(4) == height
 
 
-
 def test_observation():
     batch_size = 2
     channels = 3

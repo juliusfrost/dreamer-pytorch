@@ -67,7 +67,7 @@ def test_rollouts():
         action = torch.randn(state.stoch.size(0), action_size)
         mean = torch.randn(state.stoch.size(0), action_size)
         std = torch.randn(state.stoch.size(0), action_size)
-        action_dist = SampleDist(mean, std)
+        action_dist = SampleDist(torch.distributions.Normal(mean, std))
         return action, action_dist
 
     prev_action = torch.randn(batch_size, action_size)

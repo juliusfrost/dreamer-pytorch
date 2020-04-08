@@ -7,13 +7,15 @@ from dreamer.models.agent import AgentModel
 from rlpyt.samplers.collections import Samples, AgentSamples, EnvSamples
 from rlpyt.envs.base import EnvInfo
 
+
 def make_dreamer(action_dim):
     dreamer = Dreamer()
     agent = DreamerAgent()
     agent_model = AgentModel(output_size=action_dim)
     agent.model = agent_model
-    dreamer.initialize(agent, None, None, None, None)
+    dreamer.initialize(agent, -1, None, False, None)
     return dreamer
+
 
 def make_rssm_state(batch_1: int, batch_2: int, stoch_dim: int, deter_dim: int):
     mean = torch.randn(batch_1, batch_2, stoch_dim)
@@ -25,28 +27,26 @@ def make_rssm_state(batch_1: int, batch_2: int, stoch_dim: int, deter_dim: int):
 
 
 def test_loss():
-    batch_B = 2
-    batch_T = 4
+    batch_b = 2
+    batch_t = 4
     stoch_state_dim = 3
     deter_state_dim = 4
     action_dim = 1
-    img_size = (3, 64, 64) # TODO: figure out why atari games have 4 channels.
-
-
+    img_size = (3, 64, 64)  # TODO: figure out why atari games have 4 channels.
 
     dreamer = make_dreamer(action_dim)
 
-    action = torch.randn(batch_T, batch_B, action_dim)
-    prev_action = torch.randn(batch_T, batch_B, action_dim)
-    observation = torch.randn(batch_T, batch_B, *img_size)
-    env_reward = torch.randn(batch_T, batch_B)
-    prev_reward = torch.randn(batch_T, batch_B)
-    done = torch.zeros(batch_T, batch_B).bool()
+    action = torch.randn(batch_t, batch_b, action_dim)
+    prev_action = torch.randn(batch_t, batch_b, action_dim)
+    observation = torch.randn(batch_t, batch_b, *img_size)
+    env_reward = torch.randn(batch_t, batch_b)
+    prev_reward = torch.randn(batch_t, batch_b)
+    done = torch.zeros(batch_t, batch_b, dtype=torch.bool)
     env_info = EnvInfo()
-    value = torch.randn(batch_T, batch_B, 1)
-    reward = torch.randn(batch_T, batch_B, 1)
-    prev_state = make_rssm_state(batch_T, batch_B, stoch_state_dim, deter_state_dim)
-    state = make_rssm_state(batch_T, batch_B, stoch_state_dim, deter_state_dim)
+    value = torch.randn(batch_t, batch_b, 1)
+    reward = torch.randn(batch_t, batch_b, 1)
+    prev_state = make_rssm_state(batch_t, batch_b, stoch_state_dim, deter_state_dim)
+    state = make_rssm_state(batch_t, batch_b, stoch_state_dim, deter_state_dim)
     agent_info = DreamerAgentInfo(value=value, reward=reward, prev_state=prev_state, state=state)
     agent_samples = AgentSamples(action=action, prev_action=prev_action, agent_info=agent_info)
     env_samples = EnvSamples(observation=observation, reward=env_reward, prev_reward=prev_reward,
@@ -62,8 +62,8 @@ def test_loss():
     # Check it still works if we pass in discrete actions
     num_actions = 6
     dreamer = make_dreamer(num_actions)
-    action = torch.randint(0,  num_actions, (batch_T, batch_B))
-    prev_action = torch.randint(0,  num_actions, (batch_T, batch_B))
+    action = torch.randint(0, num_actions, (batch_t, batch_b))
+    prev_action = torch.randint(0, num_actions, (batch_t, batch_b))
     agent_samples = AgentSamples(action=action, prev_action=prev_action, agent_info=agent_info)
     env_samples = EnvSamples(observation=observation, reward=env_reward, prev_reward=prev_reward,
                              done=done, env_info=env_info)
@@ -72,7 +72,6 @@ def test_loss():
     assert isinstance(loss, torch.FloatTensor)
     assert loss.requires_grad
     assert loss.shape == ()
-
 
 
 def test_value_loss():
@@ -97,9 +96,9 @@ def test_value_loss():
 
     # Check that if you compute it independently for each batch element and each timestep we're just taking the mean.
     manual_mean_value_loss = np.mean([
-        dreamer.value_loss(imag_feat[[0,2], :1], discount[:1, :1], returns[:1, :1]).item(),
+        dreamer.value_loss(imag_feat[[0, 2], :1], discount[:1, :1], returns[:1, :1]).item(),
         dreamer.value_loss(imag_feat[1:, :1], discount[1:, :1], returns[1:, :1]).item(),
-        dreamer.value_loss(imag_feat[[0,2], 1:], discount[:1, 1:], returns[:1, 1:]).item(),
+        dreamer.value_loss(imag_feat[[0, 2], 1:], discount[:1, 1:], returns[:1, 1:]).item(),
         dreamer.value_loss(imag_feat[1:, 1:], discount[1:, 1:], returns[1:, 1:]).item(),
     ])
     assert abs(value_loss - manual_mean_value_loss) < .01, (value_loss, manual_mean_value_loss)
@@ -167,6 +166,7 @@ def test_model_loss():
     ])
     assert abs(model_loss.item() - manual_mean_model_loss) < .01, (model_loss.item(), manual_mean_model_loss)
 
+
 def test_compute_returns():
     np.random.seed(0)
     action_dim = 2
@@ -179,7 +179,7 @@ def test_compute_returns():
 
     dreamer = make_dreamer(action_dim)
     returns = dreamer.compute_return(reward[:-1], value[:-1], discount[:-1],
-                                  bootstrap=value[-1], lambda_=lambda_)
+                                     bootstrap=value[-1], lambda_=lambda_)
 
     assert isinstance(returns, torch.FloatTensor)
     assert returns.shape == (horizon - 1, batch, 1)
@@ -187,7 +187,7 @@ def test_compute_returns():
     # When lambda is 1, the value array does not affect the results at all (other than the every end)
     lambda_ = 1
     returns1 = dreamer.compute_return(reward[:-1], value[:-1], discount[:-1],
-                                     bootstrap=value[-1], lambda_=lambda_).data.numpy()
+                                      bootstrap=value[-1], lambda_=lambda_).data.numpy()
     returns2 = dreamer.compute_return(reward[:-1], value[:-1] * 100, discount[:-1],
                                       bootstrap=value[-1], lambda_=lambda_).data.numpy()
     assert np.array_equal(returns1, returns2)
@@ -196,7 +196,7 @@ def test_compute_returns():
     lambda_ = 0
     target = reward[:-1] + discount[:-1] * value[1:] * (1 - lambda_)
     returns = dreamer.compute_return(reward[:-1], value[:-1], discount[:-1],
-                                      bootstrap=value[-1], lambda_=lambda_).data.numpy()
+                                     bootstrap=value[-1], lambda_=lambda_).data.numpy()
     assert np.array_equal(returns, target)
 
     # When the discount is 0, the cumulative reward is just the rewards
@@ -213,16 +213,5 @@ def test_compute_returns():
     discount = torch.ones(horizon, 1, 1)
     returns = dreamer.compute_return(reward[:-1], value[:-1], discount[:-1],
                                      bootstrap=value[-1], lambda_=lambda_).data.numpy()
-    expected_returns = np.arange(horizon - 1, 0, -1).reshape(horizon - 1, 1, 1)
+    expected_returns = np.arange(horizon - 1, 0, -1).reshape((horizon - 1, 1, 1))
     assert np.array_equal(returns, expected_returns)
-
-
-
-
-
-
-
-test_loss()
-test_model_loss()
-test_actor_loss()
-test_value_loss()
