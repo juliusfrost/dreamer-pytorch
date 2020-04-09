@@ -89,13 +89,10 @@ class Dreamer(RlAlgorithm):
         # make actions one-hot
         action = to_onehot(action, model.action_size, dtype=self.type)
 
-        reward = samples.agent.agent_info.reward  # TODO: this or env_reward?
+        reward = samples.env.reward
 
         # if we want to continue the the agent state from the previous time steps, we can do it like so:
         # prev_state = samples.agent.agent_info.prev_state[0]
-        # But in this case, the agent won't learn to generate a prior distribution of states.
-        # So in the paper, we pick an initial state representation of zero.
-        # But I hypothesize an alternating method might help if batch_t is too small.
         prev_state = model.representation.initial_state(batch_b)
         # Rollout model by taking the same series of actions as the real model
         post, prior = model.rollout.rollout_representation(batch_t, embed, action, prev_state)

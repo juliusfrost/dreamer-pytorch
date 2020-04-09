@@ -56,6 +56,12 @@ if __name__ == "__main__":
     parser.add_argument('--log-dir', type=str, default=default_log_dir)
     args = parser.parse_args()
     log_dir = os.path.abspath(args.log_dir)
+    i = args.run_ID
+    while os.path.exists(os.path.join(log_dir, 'run_' + str(i))):
+        print(f'run {i} already exists. ')
+        i += 1
+    print(f'Using run id = {i}')
+    args.run_ID = i
     build_and_train(
         log_dir,
         game=args.game,

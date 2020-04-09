@@ -1,13 +1,13 @@
 import torch
 import torch.nn as nn
-
-from rlpyt.utils.tensor import infer_leading_dims, restore_leading_dims, to_onehot, from_onehot
 from rlpyt.utils.buffer import buffer_func
+from rlpyt.utils.collections import namedarraytuple
+from rlpyt.utils.tensor import infer_leading_dims, restore_leading_dims, to_onehot, from_onehot
 
-from dreamer.models.rnns import RSSMState, RSSMRepresentation, RSSMTransition, RSSMRollout, get_feat
-from dreamer.models.observation import ObservationDecoder, ObservationEncoder
 from dreamer.models.action import ActionDecoder
 from dreamer.models.dense import DenseModel
+from dreamer.models.observation import ObservationDecoder, ObservationEncoder
+from dreamer.models.rnns import RSSMState, RSSMRepresentation, RSSMTransition, RSSMRollout, get_feat
 
 
 class AgentModel(nn.Module):
@@ -100,8 +100,7 @@ class AgentModel(nn.Module):
         return state
 
     def forward(self, observation: torch.Tensor, prev_action: torch.Tensor = None, prev_state: RSSMState = None):
-        action, value, reward, prev_state, state = (None, None, None, None, None)
-        return_spec = (action, value, reward, prev_state, state)
+        return_spec = ModelReturnSpec(None, None)
         raise NotImplementedError()
 
 
@@ -114,11 +113,12 @@ class AtariDreamerModel(AgentModel):
             prev_state = self.representation.initial_state(prev_action.size(0), device=prev_action.device,
                                                            dtype=self.dtype)
         state = self.get_state_representation(observation, prev_action, prev_state)
-        value_dist = self.value_model(get_feat(state))
-        reward_dist = self.reward_model(get_feat(state))
-        value, reward = value_dist.sample(), reward_dist.sample()
+
         action, action_dist = self.policy(state)
         action = from_onehot(action)
-        return_spec = (action, value, reward, prev_state, state)
+        return_spec = ModelReturnSpec(action, state)
         return_spec = buffer_func(return_spec, restore_leading_dims, lead_dim, T, B)
         return return_spec
+
+
+ModelReturnSpec = namedarraytuple('ModelReturnSpec', ['action', 'state'])
