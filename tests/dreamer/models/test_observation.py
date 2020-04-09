@@ -51,9 +51,9 @@ def test_observation_decoder(shape=(3, 64, 64)):
     obs_sample: torch.Tensor = obs_dist.sample()
     assert obs_sample.size(0) == batch_size
     assert obs_sample.size(1) == horizon
-    assert obs_sample.size(2) == channels
-    assert obs_sample.size(3) == width
-    assert obs_sample.size(4) == height
+    assert obs_sample.size(2) == c
+    assert obs_sample.size(3) == h
+    assert obs_sample.size(4) == w
 
 
 @pytest.param([(3, 64, 64), (4, 104, 64)])
