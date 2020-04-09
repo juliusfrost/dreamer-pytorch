@@ -17,7 +17,6 @@ class AgentModel(nn.Module):
             stochastic_size=30,
             deterministic_size=200,
             hidden_size=200,
-            obs_embed_size=1024,
             image_shape=(3, 64, 64),
             action_hidden_size=200,
             action_layers=3,
