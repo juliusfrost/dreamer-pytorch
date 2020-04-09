@@ -43,22 +43,23 @@ class Dreamer(RlAlgorithm):
         del batch_size  # Property.
         save__init__args(locals())
         self.update_counter = 0
-        # dummy model parameters
-        self.model_params = (torch.zeros(0, requires_grad=True),)
-        self.optimizer = optim.Adam(self.model_params, lr=self.model_lr)
-        self.model_weight = self.model_lr / self.model_lr
-        self.value_weight = self.value_lr / self.model_lr
-        self.actor_weight = self.actor_lr / self.model_lr
+
+        self.optimizer = None
+        self.learning_rate = model_lr
+        self.model_weight = model_lr / self.learning_rate
+        self.value_weight = value_lr / self.learning_rate
+        self.actor_weight = actor_lr / self.learning_rate
         self.type = type
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples, world_size=1, rank=0):
         self.agent = agent
+        self.optimizer = optim.Adam(self.agent.model.parameters(), lr=self.learning_rate)
 
     def async_initialize(self, agent, sampler_n_itr, batch_spec, mid_batch_reset, examples, world_size=1):
         self.agent = agent
 
     def optim_initialize(self, rank=0):
-        pass
+        self.optimizer = optim.Adam(self.agent.model.parameters(), lr=self.learning_rate)
 
     def optimize_agent(self, itr, samples=None, sampler_itr=None):
         self.loss(samples)
@@ -129,7 +130,8 @@ class Dreamer(RlAlgorithm):
         model_loss = self.model_loss(observation, prior, post, reward)
         actor_loss = self.actor_loss(discount, returns)
         value_loss = self.value_loss(imag_feat, discount, returns)
-        return self.model_weight * model_loss + self.actor_weight * actor_loss + self.value_weight * value_loss
+        loss = self.model_weight * model_loss + self.actor_weight * actor_loss + self.value_weight * value_loss
+        return loss
 
     def model_loss(self, observation: torch.Tensor, prior: RSSMState, post: RSSMState, reward: torch.Tensor):
         """
