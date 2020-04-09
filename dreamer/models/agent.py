@@ -33,10 +33,8 @@ class AgentModel(nn.Module):
     ):
         super().__init__()
         self.observation_encoder = ObservationEncoder(shape=image_shape)
-        # calculate embedding size from forward pass
-        with torch.no_grad():
-            encoder_embed_size = self.observation_encoder(torch.zeros(1, *image_shape)).size(-1)
-            decoder_embed_size = stochastic_size + deterministic_size
+        encoder_embed_size = self.observation_encoder.embed_size
+        decoder_embed_size = stochastic_size + deterministic_size
         self.observation_decoder = ObservationDecoder(embed_size=decoder_embed_size, shape=image_shape)
         self.transition = RSSMTransition(output_size, stochastic_size, deterministic_size, hidden_size)
         self.representation = RSSMRepresentation(self.transition, encoder_embed_size, output_size, stochastic_size,
