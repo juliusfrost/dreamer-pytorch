@@ -1,12 +1,18 @@
 import torch
-import torch.optim as optim
-from rlpyt.utils.tensor import to_onehot, infer_leading_dims, restore_leading_dims
+from rlpyt.algos.base import RlAlgorithm
+from rlpyt.replays.non_sequence.frame import UniformReplayFrameBuffer, PrioritizedReplayFrameBuffer, \
+    AsyncUniformReplayFrameBuffer, AsyncPrioritizedReplayFrameBuffer
+from rlpyt.samplers.collections import Samples
+from rlpyt.utils.collections import namedarraytuple
+from rlpyt.utils.quick_args import save__init__args
+from rlpyt.utils.tensor import to_onehot, infer_leading_dims
 
 from dreamer.models.rnns import get_feat, get_dist, RSSMState
 
-from rlpyt.algos.base import RlAlgorithm
-from rlpyt.samplers.collections import Samples
-from rlpyt.utils.quick_args import save__init__args
+LossInfo = namedarraytuple('LossInfo', ['model_loss', 'actor_loss', 'value_loss'])
+OptInfo = namedarraytuple("OptInfo", ['loss', 'model_loss', 'actor_loss', 'value_loss'])
+SamplesToBuffer = namedarraytuple("SamplesToBuffer",
+                                  ["observation", "action", "reward", "done"])
 
 
 class Dreamer(RlAlgorithm):
@@ -32,13 +38,22 @@ class Dreamer(RlAlgorithm):
             expl_amount=0.3,
             expl_decay=0.0,
             expl_min=0.0,
+            OptimCls=torch.optim.Adam,
             optim_kwargs=None,
+            initial_optim_state_dict=None,
+            replay_size=int(1e6),
+            replay_ratio=8,
+            n_step_return=1,
+            prioritized_replay=False,  # not implemented yet
+            ReplayBufferCls=None,  # Leave None to select by above options.
+            updates_per_sync=1,  # For async mode only. (not implemented)
             free_nats=3,  # TODO: Do we actually need this??
             kl_scale=1,
             type=torch.float,
     ):
         super().__init__()
-
+        if optim_kwargs is None:
+            optim_kwargs = {}
         self._batch_size = batch_size
         del batch_size  # Property.
         save__init__args(locals())
@@ -51,18 +66,92 @@ class Dreamer(RlAlgorithm):
         self.actor_weight = actor_lr / self.learning_rate
         self.type = type
 
+        self.replay_size = 1e6
+        self.discount = 1
+        self.n_step_return = 1
+
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples, world_size=1, rank=0):
         self.agent = agent
-        self.optimizer = optim.Adam(self.agent.model.parameters(), lr=self.learning_rate)
+        self.n_itr = n_itr
+        self.batch_spec = batch_spec
+        self.mid_batch_reset = mid_batch_reset
+        self.initialize_replay_buffer(examples, batch_spec)
+        self.optim_initialize(rank)
 
     def async_initialize(self, agent, sampler_n_itr, batch_spec, mid_batch_reset, examples, world_size=1):
         self.agent = agent
+        self.n_itr = sampler_n_itr
+        self.mid_batch_reset = mid_batch_reset
+        self.initialize_replay_buffer(examples, batch_spec, async_=True)
 
     def optim_initialize(self, rank=0):
-        self.optimizer = optim.Adam(self.agent.model.parameters(), lr=self.learning_rate)
+        self.rank = rank
+        self.optimizer = self.OptimCls(self.agent.model.parameters(), lr=self.learning_rate, **self.optim_kwargs)
+        if self.initial_optim_state_dict is not None:
+            self.optimizer.load_state_dict(self.initial_optim_state_dict)
 
     def optimize_agent(self, itr, samples=None, sampler_itr=None):
-        self.loss(samples)
+        itr = itr if sampler_itr is None else sampler_itr
+        if samples is not None:
+            samples_to_buffer = self.samples_to_buffer(samples)
+            self.replay_buffer.append_samples(samples_to_buffer)
+        opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
+        for _ in range(self.train_steps):
+            samples_from_replay = self.replay_buffer.sample_batch(self._batch_size)
+            self.optimizer.zero_grad()
+            loss, loss_info = self.loss(samples_from_replay)
+            loss.backward()
+            self.optimizer.step()
+            opt_info.loss.append(loss.item())
+            opt_info.model_loss.append(loss_info.model_loss.item())
+            opt_info.actor_loss.append(loss_info.actor_loss.item())
+            opt_info.value_loss.append(loss_info.value_loss.item())
+
+        return opt_info
+
+    def samples_to_buffer(self, samples):
+        """Defines how to add data from sampler into the replay buffer. Called
+        in optimize_agent() if samples are provided to that method.  In
+        asynchronous mode, will be called in the memory_copier process."""
+        return SamplesToBuffer(
+            observation=samples.env.observation,
+            action=samples.agent.action,
+            reward=samples.env.reward,
+            done=samples.env.done,
+        )
+
+    def initialize_replay_buffer(self, examples, batch_spec, async_=False):
+        """
+        Allocates replay buffer using examples and with the fields in `SamplesToBuffer`
+        namedarraytuple.  Uses frame-wise buffers, so that only unique frames are stored,
+        using less memory (usual observations are 4 most recent frames, with only newest
+        frame distince from previous observation).
+        """
+        example_to_buffer = SamplesToBuffer(
+            observation=examples["observation"],
+            action=examples["action"],
+            reward=examples["reward"],
+            done=examples["done"],
+        )
+        replay_kwargs = dict(
+            example=example_to_buffer,
+            size=self.replay_size,
+            B=batch_spec.B,
+            discount=self.discount,
+            n_step_return=self.n_step_return,
+        )
+        if self.prioritized_replay:
+            replay_kwargs.update(dict(
+                alpha=self.pri_alpha,
+                beta=self.pri_beta_init,
+                default_priority=self.default_priority,
+            ))
+            ReplayCls = (AsyncPrioritizedReplayFrameBuffer if async_ else
+                         PrioritizedReplayFrameBuffer)
+        else:
+            ReplayCls = (AsyncUniformReplayFrameBuffer if async_ else
+                         UniformReplayFrameBuffer)
+        self.replay_buffer = ReplayCls(**replay_kwargs)
 
     def loss(self, samples: Samples):
         """
@@ -131,7 +220,8 @@ class Dreamer(RlAlgorithm):
         actor_loss = self.actor_loss(discount, returns)
         value_loss = self.value_loss(imag_feat, discount, returns)
         loss = self.model_weight * model_loss + self.actor_weight * actor_loss + self.value_weight * value_loss
-        return loss
+        loss_info = LossInfo(model_loss, actor_loss, value_loss)
+        return loss, loss_info
 
     def model_loss(self, observation: torch.Tensor, prior: RSSMState, post: RSSMState, reward: torch.Tensor):
         """
