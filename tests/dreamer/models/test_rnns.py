@@ -1,6 +1,7 @@
 import torch
 
 from dreamer.models.rnns import RSSMState, RSSMTransition, RSSMRepresentation, RSSMRollout
+from dreamer.models.distribution import SampleDist
 
 
 def test_rssm():
@@ -38,41 +39,45 @@ def test_rollouts():
 
     rollout_module = RSSMRollout(representation_model, transition_model)
 
-    obs_embed: torch.Tensor = torch.randn(batch_size, time_steps, obs_embed_size)
-    action: torch.Tensor = torch.randn(batch_size, time_steps, action_size)
+    obs_embed: torch.Tensor = torch.randn(time_steps, batch_size, obs_embed_size)
+    action: torch.Tensor = torch.randn(time_steps, batch_size, action_size)
     prev_state: RSSMState = representation_model.initial_state(batch_size)
 
     prior, post = rollout_module(time_steps, obs_embed, action, prev_state)
 
     assert isinstance(prior, RSSMState)
     assert isinstance(post, RSSMState)
-    assert prior.mean.shape == (batch_size, time_steps, stochastic_size)
-    assert post.mean.shape == (batch_size, time_steps, stochastic_size)
-    assert prior.std.shape == (batch_size, time_steps, stochastic_size)
-    assert post.std.shape == (batch_size, time_steps, stochastic_size)
-    assert prior.stoch.shape == (batch_size, time_steps, stochastic_size)
-    assert post.stoch.shape == (batch_size, time_steps, stochastic_size)
-    assert prior.deter.shape == (batch_size, time_steps, deterministic_size)
-    assert post.deter.shape == (batch_size, time_steps, deterministic_size)
+    assert prior.mean.shape == (time_steps, batch_size, stochastic_size)
+    assert post.mean.shape == (time_steps, batch_size, stochastic_size)
+    assert prior.std.shape == (time_steps, batch_size, stochastic_size)
+    assert post.std.shape == (time_steps, batch_size, stochastic_size)
+    assert prior.stoch.shape == (time_steps, batch_size, stochastic_size)
+    assert post.stoch.shape == (time_steps, batch_size, stochastic_size)
+    assert prior.deter.shape == (time_steps, batch_size, deterministic_size)
+    assert post.deter.shape == (time_steps, batch_size, deterministic_size)
 
     prior = rollout_module.rollout_transition(time_steps, action, transition_model.initial_state(batch_size))
     assert isinstance(post, RSSMState)
-    assert prior.mean.shape == (batch_size, time_steps, stochastic_size)
-    assert prior.std.shape == (batch_size, time_steps, stochastic_size)
-    assert prior.stoch.shape == (batch_size, time_steps, stochastic_size)
-    assert prior.deter.shape == (batch_size, time_steps, deterministic_size)
+    assert prior.mean.shape == (time_steps, batch_size, stochastic_size)
+    assert prior.std.shape == (time_steps, batch_size, stochastic_size)
+    assert prior.stoch.shape == (time_steps, batch_size, stochastic_size)
+    assert prior.deter.shape == (time_steps, batch_size, deterministic_size)
 
     def policy(state):
-        return torch.randn(state.stoch.size(0), action_size)
+        action = torch.randn(state.stoch.size(0), action_size)
+        mean = torch.randn(state.stoch.size(0), action_size)
+        std = torch.randn(state.stoch.size(0), action_size)
+        action_dist = SampleDist(torch.distributions.Normal(mean, std))
+        return action, action_dist
 
     prev_action = torch.randn(batch_size, action_size)
     prior, actions = rollout_module.rollout_policy(time_steps, policy, prev_action,
                                                    transition_model.initial_state(batch_size))
     assert isinstance(prior, RSSMState)
-    assert prior.mean.shape == (batch_size, time_steps, stochastic_size)
-    assert prior.std.shape == (batch_size, time_steps, stochastic_size)
-    assert prior.stoch.shape == (batch_size, time_steps, stochastic_size)
-    assert prior.deter.shape == (batch_size, time_steps, deterministic_size)
+    assert prior.mean.shape == (time_steps, batch_size, stochastic_size)
+    assert prior.std.shape == (time_steps, batch_size, stochastic_size)
+    assert prior.stoch.shape == (time_steps, batch_size, stochastic_size)
+    assert prior.deter.shape == (time_steps, batch_size, deterministic_size)
 
     assert isinstance(actions, torch.Tensor)
-    assert actions.shape == (batch_size, time_steps, action_size)
+    assert actions.shape == (time_steps, batch_size, action_size)
