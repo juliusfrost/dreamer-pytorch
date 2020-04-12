@@ -16,7 +16,7 @@ def build_and_train(log_dir, game="pong", run_ID=0, cuda_idx=None, eval=False):
         TrajInfoCls=AtariTrajInfo,  # default traj info + GameScore
         env_kwargs=dict(game=game),
         eval_env_kwargs=dict(game=game),
-        batch_T=4,  # Four time-steps per sampler iteration.
+        batch_T=1,
         batch_B=1,
         max_decorrelation_steps=0,
         eval_n_envs=10,
@@ -30,7 +30,7 @@ def build_and_train(log_dir, game="pong", run_ID=0, cuda_idx=None, eval=False):
         algo=algo,
         agent=agent,
         sampler=sampler,
-        n_steps=50e6,
+        n_steps=5e6,
         log_interval_steps=1e3,
         affinity=dict(cuda_idx=cuda_idx),
     )
@@ -48,6 +48,7 @@ if __name__ == "__main__":
     parser.add_argument('--game', help='Atari game', default='pong')
     parser.add_argument('--run-ID', help='run identifier (logging)', type=int, default=0)
     parser.add_argument('--cuda-idx', help='gpu to use ', type=int, default=None)
+    parser.add_argument('--eval', action='store_true')
     default_log_dir = os.path.join(
         os.path.dirname(__file__),
         'data',
@@ -67,4 +68,5 @@ if __name__ == "__main__":
         game=args.game,
         run_ID=args.run_ID,
         cuda_idx=args.cuda_idx,
+        eval=args.eval,
     )

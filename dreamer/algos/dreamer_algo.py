@@ -1,18 +1,16 @@
 import torch
 from rlpyt.algos.base import RlAlgorithm
-from rlpyt.replays.non_sequence.frame import UniformReplayFrameBuffer, PrioritizedReplayFrameBuffer, \
-    AsyncUniformReplayFrameBuffer, AsyncPrioritizedReplayFrameBuffer
-from rlpyt.samplers.collections import Samples
+from rlpyt.utils.buffer import buffer_to
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.tensor import to_onehot, infer_leading_dims
+from tqdm import tqdm
 
+from dreamer.algos.replay import initialize_replay_buffer, samples_to_buffer
 from dreamer.models.rnns import get_feat, get_dist, RSSMState
 
 LossInfo = namedarraytuple('LossInfo', ['model_loss', 'actor_loss', 'value_loss'])
 OptInfo = namedarraytuple("OptInfo", ['loss', 'model_loss', 'actor_loss', 'value_loss'])
-SamplesToBuffer = namedarraytuple("SamplesToBuffer",
-                                  ["observation", "action", "reward", "done"])
 
 
 class Dreamer(RlAlgorithm):
@@ -47,9 +45,10 @@ class Dreamer(RlAlgorithm):
             prioritized_replay=False,  # not implemented yet
             ReplayBufferCls=None,  # Leave None to select by above options.
             updates_per_sync=1,  # For async mode only. (not implemented)
-            free_nats=3,  # TODO: Do we actually need this??
+            free_nats=3,
             kl_scale=1,
             type=torch.float,
+            prefill=5000,
     ):
         super().__init__()
         if optim_kwargs is None:
@@ -66,23 +65,20 @@ class Dreamer(RlAlgorithm):
         self.actor_weight = actor_lr / self.learning_rate
         self.type = type
 
-        self.replay_size = 1e6
-        self.discount = 1
-        self.n_step_return = 1
-
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples, world_size=1, rank=0):
         self.agent = agent
         self.n_itr = n_itr
         self.batch_spec = batch_spec
         self.mid_batch_reset = mid_batch_reset
-        self.initialize_replay_buffer(examples, batch_spec)
+        self.replay_buffer = initialize_replay_buffer(self, examples, batch_spec)
         self.optim_initialize(rank)
 
     def async_initialize(self, agent, sampler_n_itr, batch_spec, mid_batch_reset, examples, world_size=1):
         self.agent = agent
         self.n_itr = sampler_n_itr
+        self.batch_spec = batch_spec
         self.mid_batch_reset = mid_batch_reset
-        self.initialize_replay_buffer(examples, batch_spec, async_=True)
+        self.replay_buffer = initialize_replay_buffer(self, examples, batch_spec, async_=True)
 
     def optim_initialize(self, rank=0):
         self.rank = rank
@@ -93,13 +89,21 @@ class Dreamer(RlAlgorithm):
     def optimize_agent(self, itr, samples=None, sampler_itr=None):
         itr = itr if sampler_itr is None else sampler_itr
         if samples is not None:
-            samples_to_buffer = self.samples_to_buffer(samples)
-            self.replay_buffer.append_samples(samples_to_buffer)
+            self.replay_buffer.append_samples(samples_to_buffer(samples))
+
         opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
-        for _ in range(self.train_steps):
-            samples_from_replay = self.replay_buffer.sample_batch(self._batch_size)
+        if itr < self.prefill:
+            return opt_info
+        if itr % self.train_every != 0:
+            return opt_info
+        for i in tqdm(range(self.train_steps), desc='Imagination'):
             self.optimizer.zero_grad()
-            loss, loss_info = self.loss(samples_from_replay)
+            samples_from_replay = self.replay_buffer.sample_batch(self._batch_size, self.batch_length)
+            observation = samples_from_replay.all_observation[:-1]  # [t, t+batch_length+1] -> [t, t+batch_length]
+            action = samples_from_replay.all_action[1:]  # [t-1, t+batch_length] -> [t, t+batch_length]
+            reward = samples_from_replay.all_reward[1:]  # [t-1, t+batch_length] -> [t, t+batch_length]
+            loss_inputs = buffer_to((observation, action, reward), self.agent.device)
+            loss, loss_info = self.loss(*loss_inputs)
             loss.backward()
             self.optimizer.step()
             opt_info.loss.append(loss.item())
@@ -109,56 +113,14 @@ class Dreamer(RlAlgorithm):
 
         return opt_info
 
-    def samples_to_buffer(self, samples):
-        """Defines how to add data from sampler into the replay buffer. Called
-        in optimize_agent() if samples are provided to that method.  In
-        asynchronous mode, will be called in the memory_copier process."""
-        return SamplesToBuffer(
-            observation=samples.env.observation,
-            action=samples.agent.action,
-            reward=samples.env.reward,
-            done=samples.env.done,
-        )
-
-    def initialize_replay_buffer(self, examples, batch_spec, async_=False):
-        """
-        Allocates replay buffer using examples and with the fields in `SamplesToBuffer`
-        namedarraytuple.  Uses frame-wise buffers, so that only unique frames are stored,
-        using less memory (usual observations are 4 most recent frames, with only newest
-        frame distince from previous observation).
-        """
-        example_to_buffer = SamplesToBuffer(
-            observation=examples["observation"],
-            action=examples["action"],
-            reward=examples["reward"],
-            done=examples["done"],
-        )
-        replay_kwargs = dict(
-            example=example_to_buffer,
-            size=self.replay_size,
-            B=batch_spec.B,
-            discount=self.discount,
-            n_step_return=self.n_step_return,
-        )
-        if self.prioritized_replay:
-            replay_kwargs.update(dict(
-                alpha=self.pri_alpha,
-                beta=self.pri_beta_init,
-                default_priority=self.default_priority,
-            ))
-            ReplayCls = (AsyncPrioritizedReplayFrameBuffer if async_ else
-                         PrioritizedReplayFrameBuffer)
-        else:
-            ReplayCls = (AsyncUniformReplayFrameBuffer if async_ else
-                         UniformReplayFrameBuffer)
-        self.replay_buffer = ReplayCls(**replay_kwargs)
-
-    def loss(self, samples: Samples):
+    def loss(self, observation, action, reward):
         """
         Compute the loss for a batch of data.  This includes computing the model and reward losses on the given data,
         as well as using the dynamics model to generate additional rollouts, which are used for the actor and value
         components of the loss.
-        :param samples: rlpyt Samples object, containing a batch of data.  All vectors are [timestep, batch, vector_dim]
+        :param observation: size(batch_t, batch_b, c, h ,w)
+        :param action: size(batch_t, batch_b) if categorical
+        :param reward: size(batch_t, batch_b, 1)
         :return: FloatTensor containing the loss
         """
         model = self.agent.model
@@ -167,26 +129,21 @@ class Dreamer(RlAlgorithm):
         # They all have the batch_t dimension first, but we'll put the batch_b dimension first.
         # Also, we convert all tensors to floats so they can be fed into our models.
 
-        lead_dim, batch_t, batch_b, img_shape = infer_leading_dims(samples.env.observation, 3)
+        lead_dim, batch_t, batch_b, img_shape = infer_leading_dims(observation, 3)
         # squeeze batch sizes to single batch dimension for imagination roll-out
         batch_size = batch_t * batch_b
 
-        observation = samples.env.observation
         # normalize image
         observation = observation.type(self.type) / 255.0 - 0.5
         # embed the image
         embed = model.observation_encoder(observation)
 
-        # get action
-        action = samples.agent.action
         # make actions one-hot
         action = to_onehot(action, model.action_size, dtype=self.type)
 
-        reward = samples.env.reward
-
         # if we want to continue the the agent state from the previous time steps, we can do it like so:
         # prev_state = samples.agent.agent_info.prev_state[0]
-        prev_state = model.representation.initial_state(batch_b)
+        prev_state = model.representation.initial_state(batch_b, device=action.device, dtype=action.dtype)
         # Rollout model by taking the same series of actions as the real model
         post, prior = model.rollout.rollout_representation(batch_t, embed, action, prev_state)
         # Flatten our data (so first dimension is batch_t * batch_b = batch_size)
