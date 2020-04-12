@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from rlpyt.agents.base import BaseAgent, RecurrentAgentMixin, AgentStep
 from rlpyt.utils.buffer import buffer_to, buffer_func
@@ -11,7 +12,14 @@ DreamerAgentInfo = namedarraytuple('DreamerAgentInfo', ['prev_state'])
 # see classes BaseAgent and RecurrentAgentMixin for documentation
 class DreamerAgent(RecurrentAgentMixin, BaseAgent):
 
-    def __init__(self, ModelCls=AgentModel, model_kwargs=None, initial_model_state_dict=None):
+    def __init__(self, ModelCls=AgentModel, train_noise=0.4, eval_noise=0,
+                 expl_type="additive_gaussian", expl_min=0.1, expl_decay=7000,
+                 model_kwargs=None, initial_model_state_dict=None):
+        self.train_noise = train_noise
+        self.eval_noise = eval_noise
+        self.expl_type = expl_type
+        self.expl_min = expl_min
+        self.expl_decay = expl_decay
         super().__init__(ModelCls, model_kwargs, initial_model_state_dict)
 
     def make_env_to_model_kwargs(self, env_spaces):
@@ -33,6 +41,7 @@ class DreamerAgent(RecurrentAgentMixin, BaseAgent):
         """
         model_inputs = buffer_to((observation, prev_action), device=self.device)
         action, state = self.model(*model_inputs, self.prev_rnn_state)
+        action = self.exploration(action)
         # Model handles None, but Buffer does not, make zeros if needed:
         prev_state = self.prev_rnn_state or buffer_func(state, torch.zeros_like)
         self.advance_rnn_state(state)
@@ -50,3 +59,31 @@ class DreamerAgent(RecurrentAgentMixin, BaseAgent):
         agent_inputs = buffer_to((observation, prev_action), device=self.device)
         action, action_dist, value, reward, state = self.model(*agent_inputs, self.prev_rnn_state)
         return value.to("cpu")
+
+    def exploration(self, action: torch.Tensor) -> torch.Tensor:
+        """
+        :param action: action to take, shape (1,) (if categorical), or (action dim,) (if continuous)
+        :return: action of the same shape passed in, augmented with some noise
+        """
+        if self._mode in ['train', 'sample']:
+            expl_amount = self.train_noise
+            if self.expl_decay:  # Linear decay
+                expl_amount = expl_amount - self._itr / self.expl_decay
+            if self.expl_min:
+                expl_amount = max(self.expl_min, expl_amount)
+        elif self._mode == 'eval':
+            expl_amount = self.eval_noise
+        if self.expl_type == 'additive_gaussian':  # For continuous actions
+            noise = torch.randn(*action.shape, device=action.device) * expl_amount
+            return torch.clamp(action + noise, -1, 1)
+        if self.expl_type == 'completely_random':  # For continuous actions
+            if expl_amount == 0:
+                return action
+            else:
+                return torch.rand(*action.shape, device=action.device) * 2 - 1  # scale to [-1, 1]
+        if self.expl_type == 'epsilon_greedy':  # For discrete actions
+            action_dim = self.env_model_kwargs["output_size"]
+            if np.random.uniform(0, 1) < expl_amount:
+                action = torch.randint(0, action_dim, action.shape, device=action.device)
+            return action
+        raise NotImplementedError(self.expl_type)
