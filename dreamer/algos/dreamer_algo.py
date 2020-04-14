@@ -1,6 +1,6 @@
 import torch
 from rlpyt.algos.base import RlAlgorithm
-from rlpyt.utils.buffer import buffer_to
+from rlpyt.utils.buffer import buffer_to, buffer_method
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.tensor import to_onehot, infer_leading_dims
@@ -148,13 +148,11 @@ class Dreamer(RlAlgorithm):
         post, prior = model.rollout.rollout_representation(batch_t, embed, action, prev_state)
         # Flatten our data (so first dimension is batch_t * batch_b = batch_size)
         # since we're going to do a new rollout starting from each state visited in each batch.
-        flat_post = RSSMState(
-            mean=post.mean.reshape(batch_size, -1),
-            std=post.std.reshape(batch_size, -1),
-            stoch=post.stoch.reshape(batch_size, -1),
-            deter=post.deter.reshape(batch_size, -1)
-        )
-        flat_action = action.reshape(batch_size, -1)
+
+        # detach gradient here since the actor and value gradients do not need to propagate through representation
+        flat_post = buffer_method(post, 'reshape', batch_size, -1)
+        flat_post = buffer_method(flat_post, 'detach')
+        flat_action = action.reshape(batch_size, -1).detach()
         # Rollout the policy for self.horizon steps. Variable names with imag_ indicate this data is imagined not real.
         # imag_feat shape is [horizon, batch_t * batch_b, feature_size]
         imag_dist, _ = model.rollout.rollout_policy(self.horizon, model.policy, flat_action, flat_post)
@@ -163,6 +161,7 @@ class Dreamer(RlAlgorithm):
         imag_feat = get_feat(imag_dist)  # [horizon, batch_t * batch_b, feature_size]
         # Assumes these are normal distributions. In the TF code it's be mode, but for a normal distribution mean = mode
         # If we want to use other distributions we'll have to fix this.
+        # We calculate the target here so no grad necessary
         imag_reward = model.reward_model(imag_feat).mean
         value = model.value_model(imag_feat).mean
 
@@ -170,7 +169,7 @@ class Dreamer(RlAlgorithm):
         discount_arr = self.discount * torch.ones_like(imag_reward)
         returns = self.compute_return(imag_reward[:-1], value[:-1], discount_arr[:-1],
                                       bootstrap=value[-1], lambda_=self.discount_lambda)
-        discount = torch.cumprod(discount_arr[:-1], 1).detach()
+        discount = torch.cumprod(discount_arr[:-1], 1)
 
         # Compute losses for each component of the model
         model_loss = self.model_loss(observation, prior, post, reward)
@@ -233,7 +232,7 @@ class Dreamer(RlAlgorithm):
         Compute loss for the value model. All vectors are [batch, horizon, vector_dim]
         """
         value_pred = self.agent.model.value_model(imag_feat[:-1])
-        target = returns.detach()
+        target = returns.detach()  # stop gradients here
         log_prob = value_pred.log_prob(target)
         value_loss = -torch.mean(discount * log_prob.unsqueeze(2))
         return value_loss
