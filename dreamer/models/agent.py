@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 from rlpyt.utils.buffer import buffer_func
@@ -13,7 +14,7 @@ from dreamer.models.rnns import RSSMState, RSSMRepresentation, RSSMTransition, R
 class AgentModel(nn.Module):
     def __init__(
             self,
-            output_size,
+            action_shape,
             stochastic_size=30,
             deterministic_size=200,
             hidden_size=200,
@@ -35,6 +36,8 @@ class AgentModel(nn.Module):
         encoder_embed_size = self.observation_encoder.embed_size
         decoder_embed_size = stochastic_size + deterministic_size
         self.observation_decoder = ObservationDecoder(embed_size=decoder_embed_size, shape=image_shape)
+        self.action_shape = action_shape
+        output_size = np.prod(action_shape)
         self.transition = RSSMTransition(output_size, stochastic_size, deterministic_size, hidden_size)
         self.representation = RSSMRepresentation(self.transition, encoder_embed_size, output_size, stochastic_size,
                                                  deterministic_size, hidden_size)
@@ -67,6 +70,7 @@ class AgentModel(nn.Module):
         else:
             # cannot propagate gradients with one hot distribution
             action = action_dist.sample()
+        action = action.reshape(*action.shape[:-1], *self.action_shape)
         return action, action_dist
 
     def get_state_representation(self, observation: torch.Tensor, prev_action: torch.Tensor = None,
@@ -107,14 +111,13 @@ class AtariDreamerModel(AgentModel):
     def forward(self, observation: torch.Tensor, prev_action: torch.Tensor = None, prev_state: RSSMState = None):
         lead_dim, T, B, img_shape = infer_leading_dims(observation, 3)
         observation = observation.reshape(T * B, *img_shape).type(self.dtype) / 255.0 - 0.5
-        prev_action = to_onehot(prev_action.reshape(T * B, ), self.action_size, dtype=self.dtype)
+        prev_action = prev_action.reshape(T * B, -1).to(self.dtype)
         if prev_state is None:
             prev_state = self.representation.initial_state(prev_action.size(0), device=prev_action.device,
                                                            dtype=self.dtype)
         state = self.get_state_representation(observation, prev_action, prev_state)
 
         action, action_dist = self.policy(state)
-        action = from_onehot(action)
         return_spec = ModelReturnSpec(action, state)
         return_spec = buffer_func(return_spec, restore_leading_dims, lead_dim, T, B)
         return return_spec

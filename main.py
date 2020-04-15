@@ -8,6 +8,8 @@ from rlpyt.utils.logging.context import logger_context
 from dreamer.agents.atari_dreamer_agent import AtariDreamerAgent
 from dreamer.algos.dreamer_algo import Dreamer
 from dreamer.envs.modified_atari import AtariEnv, AtariTrajInfo
+from dreamer.envs.wrapper import make_wapper
+from dreamer.envs.one_hot import OneHotAction
 
 
 def build_and_train(log_dir, game="pong", run_ID=0, cuda_idx=None, eval=False):
@@ -17,8 +19,9 @@ def build_and_train(log_dir, game="pong", run_ID=0, cuda_idx=None, eval=False):
         frame_skip=2,  # because dreamer action repeat = 2
         repeat_action_probability=0.25  # Atari-v0 repeat action probability = 0.25
     )
+    factory_method = make_wapper(AtariEnv, [OneHotAction], [{}])
     sampler = SerialSampler(
-        EnvCls=AtariEnv,
+        EnvCls=factory_method,
         TrajInfoCls=AtariTrajInfo,  # default traj info + GameScore
         env_kwargs=env_kwargs,
         eval_env_kwargs=env_kwargs,
