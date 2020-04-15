@@ -4,7 +4,7 @@ import torch
 from dreamer.models.action import ActionDecoder
 
 
-@pytest.mark.parametrize('dist', ['tanh_normal', 'one_hot', 'not_implemented_dist'])
+@pytest.mark.parametrize('dist', ['tanh_normal', 'one_hot', 'relaxed_one_hot', 'not_implemented_dist'])
 def test_action_decoder(dist):
     batch_size = 4
     action_size = 10

@@ -4,13 +4,13 @@ import torch
 from dreamer.models.agent import AgentModel
 
 
-@pytest.mark.parametrize('dist', ['tanh_normal', 'one_hot'])
+@pytest.mark.parametrize('dist', ['tanh_normal', 'one_hot', 'relaxed_one_hot'])
 def test_agent(dist):
     batch_size = 1
-    action_size = 2
+    action_shape = (2,)
     deterministic_size = 200
     obs_shape = (3, 64, 64)
-    agent_model = AgentModel(action_size, deterministic_size=deterministic_size, image_shape=obs_shape,
+    agent_model = AgentModel(action_shape, deterministic_size=deterministic_size, image_shape=obs_shape,
                              action_dist=dist)
 
     observation = torch.randn(batch_size, *obs_shape)
@@ -21,7 +21,7 @@ def test_agent(dist):
     assert state.deter.shape == (batch_size, deterministic_size)
 
     action, action_dist = agent_model.policy(state)
-    assert action.shape == (batch_size, action_size)
+    assert action.shape == (batch_size, *action_shape)
 
     agent_model.eval()
     try:

@@ -74,6 +74,7 @@ class AtariEnv(Env):
                  max_start_noops=30,
                  repeat_action_probability=0.,
                  horizon=27000,
+                 seed=0
                  ):
         save__init__args(locals(), underscore=True)
         # ALE
@@ -97,6 +98,8 @@ class AtariEnv(Env):
         self._raw_frame_2 = self._max_frame.copy()
         self._obs = np.zeros(shape=obs_shape, dtype="uint8")
 
+        self.random = np.random.RandomState(seed)
+
         # Settings
         self._has_fire = "FIRE" in self.get_action_meanings()
         self._has_up = "UP" in self.get_action_meanings()
@@ -108,7 +111,7 @@ class AtariEnv(Env):
         self.ale.reset_game()
         self._reset_obs()
         self._life_reset()
-        for _ in range(np.random.randint(0, self._max_start_noops + 1)):
+        for _ in range(self.random.randint(0, self._max_start_noops + 1)):
             self.ale.act(0)
         self._update_obs()  # (don't bother to populate any frame history)
         self._step_counter = 0
@@ -145,6 +148,9 @@ class AtariEnv(Env):
 
     def get_obs(self):
         return self._obs.copy()
+
+    def seed(self, seed):
+        self.random = np.random.RandomState(seed)
 
     ###########################################################################
     # Helpers

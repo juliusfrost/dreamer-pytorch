@@ -7,3 +7,4 @@ numpy
 psutil
 pyprind
 rlpyt
+tqdm
