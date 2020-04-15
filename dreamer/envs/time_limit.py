@@ -8,9 +8,6 @@ class TimeLimit(EnvWrapper):
         self._duration = duration
         self._step = None
 
-    def __getattr__(self, name):
-        return getattr(self._env, name)
-
     def step(self, action):
         assert self._step is not None, 'Must reset environment.'
         obs, reward, done, info = self.env.step(action)
