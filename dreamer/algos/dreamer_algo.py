@@ -73,6 +73,7 @@ class Dreamer(RlAlgorithm):
         :return: FloatTensor containing the loss
         """
         model = self.agent.model
+        device = next(model.parameters()).device
 
         # Extract tensors from the Samples object
         # They all have the batch_t dimension first, but we'll put the batch_b dimension first.
@@ -82,7 +83,7 @@ class Dreamer(RlAlgorithm):
         # squeeze batch sizes to single batch dimension for imagination roll-out
         batch_size = batch_t * batch_b
 
-        observation = samples.env.observation
+        observation = samples.env.observation.to(device)
         # normalize image
         observation = observation.type(self.type) / 255.0 - 0.5
         # embed the image
@@ -91,13 +92,13 @@ class Dreamer(RlAlgorithm):
         # get action
         action = samples.agent.action
         # make actions one-hot
-        action = to_onehot(action, model.action_size, dtype=self.type)
+        action = to_onehot(action, model.action_size, dtype=self.type).to(device)
 
-        reward = samples.env.reward
+        reward = samples.env.reward.to(device)
 
         # if we want to continue the the agent state from the previous time steps, we can do it like so:
         # prev_state = samples.agent.agent_info.prev_state[0]
-        prev_state = model.representation.initial_state(batch_b)
+        prev_state = model.representation.initial_state(batch_b, device=device)
         # Rollout model by taking the same series of actions as the real model
         post, prior = model.rollout.rollout_representation(batch_t, embed, action, prev_state)
         # Flatten our data (so first dimension is batch_t * batch_b = batch_size)
