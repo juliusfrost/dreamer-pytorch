@@ -3,6 +3,7 @@ torchvision
 gym
 atari_py
 opencv-python
+numpy
 psutil
 pyprind
 rlpyt

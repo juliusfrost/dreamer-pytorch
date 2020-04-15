@@ -1,21 +1,27 @@
 import datetime
 import os
 
-from rlpyt.envs.atari.atari_env import AtariEnv, AtariTrajInfo
 from rlpyt.runners.minibatch_rl import MinibatchRlEval, MinibatchRl
 from rlpyt.samplers.serial.sampler import SerialSampler
 from rlpyt.utils.logging.context import logger_context
 
 from dreamer.agents.atari_dreamer_agent import AtariDreamerAgent
 from dreamer.algos.dreamer_algo import Dreamer
+from dreamer.envs.modified_atari import AtariEnv, AtariTrajInfo
 
 
 def build_and_train(log_dir, game="pong", run_ID=0, cuda_idx=None, eval=False):
+    env_kwargs = dict(
+        game=game,
+        frame_shape=(64, 64),  # dreamer uses this, default is 80, 104
+        frame_skip=2,  # because dreamer action repeat = 2
+        repeat_action_probability=0.25  # Atari-v0 repeat action probability = 0.25
+    )
     sampler = SerialSampler(
         EnvCls=AtariEnv,
         TrajInfoCls=AtariTrajInfo,  # default traj info + GameScore
-        env_kwargs=dict(game=game),
-        eval_env_kwargs=dict(game=game),
+        env_kwargs=env_kwargs,
+        eval_env_kwargs=env_kwargs,
         batch_T=1,
         batch_B=1,
         max_decorrelation_steps=0,
