@@ -31,7 +31,7 @@ class ActionDecoder(nn.Module):
             model += [self.activation()]
         if self.dist == 'tanh_normal':
             model += [nn.Linear(self.hidden_size, self.action_size * 2)]
-        elif self.dist == 'one_hot':
+        elif self.dist == 'one_hot' or self.dist == 'relaxed_one_hot':
             model += [nn.Linear(self.hidden_size, self.action_size)]
         else:
             raise NotImplementedError(f'{self.dist} not implemented')
@@ -50,4 +50,6 @@ class ActionDecoder(nn.Module):
             dist = SampleDist(dist)
         elif self.dist == 'one_hot':
             dist = torch.distributions.OneHotCategorical(logits=x)
+        elif self.dist == 'relaxed_one_hot':
+            dist = torch.distributions.RelaxedOneHotCategorical(0.1, logits=x)
         return dist

@@ -21,6 +21,8 @@ class DreamerAgent(RecurrentAgentMixin, BaseAgent):
         self.expl_min = expl_min
         self.expl_decay = expl_decay
         super().__init__(ModelCls, model_kwargs, initial_model_state_dict)
+        self._mode = 'train'
+        self._itr = 0
 
     def make_env_to_model_kwargs(self, env_spaces):
         """Generate any keyword args to the model which depend on environment interfaces."""
@@ -73,6 +75,9 @@ class DreamerAgent(RecurrentAgentMixin, BaseAgent):
                 expl_amount = max(self.expl_min, expl_amount)
         elif self._mode == 'eval':
             expl_amount = self.eval_noise
+        else:
+            raise NotImplementedError
+
         if self.expl_type == 'additive_gaussian':  # For continuous actions
             noise = torch.randn(*action.shape, device=action.device) * expl_amount
             return torch.clamp(action + noise, -1, 1)
@@ -82,8 +87,10 @@ class DreamerAgent(RecurrentAgentMixin, BaseAgent):
             else:
                 return torch.rand(*action.shape, device=action.device) * 2 - 1  # scale to [-1, 1]
         if self.expl_type == 'epsilon_greedy':  # For discrete actions
-            action_dim = self.env_model_kwargs["output_size"]
+            action_dim = self.env_model_kwargs["action_shape"][0]
             if np.random.uniform(0, 1) < expl_amount:
-                action = torch.randint(0, action_dim, action.shape, device=action.device)
+                index = torch.randint(0, action_dim, action.shape[:-1], device=action.device)
+                action = torch.zeros_like(action)
+                action[..., index] = 1
             return action
         raise NotImplementedError(self.expl_type)

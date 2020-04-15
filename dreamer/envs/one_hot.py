@@ -24,7 +24,7 @@ class OneHotAction(EnvWrapper):
         index = np.argmax(action).astype(int)
         reference = np.zeros_like(action)
         reference[index] = 1
-        if not np.allclose(reference, action):
+        if not np.allclose(reference, action, atol=1e6):
             raise ValueError(f'Invalid one-hot action:\n{action}')
         return self.env.step(index)
 

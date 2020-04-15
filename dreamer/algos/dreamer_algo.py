@@ -138,9 +138,6 @@ class Dreamer(RlAlgorithm):
         # embed the image
         embed = model.observation_encoder(observation)
 
-        # make actions one-hot
-        action = to_onehot(action, model.action_size, dtype=self.type)
-
         # if we want to continue the the agent state from the previous time steps, we can do it like so:
         # prev_state = samples.agent.agent_info.prev_state[0]
         prev_state = model.representation.initial_state(batch_b, device=action.device, dtype=action.dtype)
