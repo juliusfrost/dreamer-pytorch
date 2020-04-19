@@ -17,7 +17,7 @@ def build_and_train(log_dir, game="cartpole_balance", run_ID=0, cuda_idx=None, e
         TrajInfoCls=TrajInfo,
         env_kwargs=dict(name=game),
         eval_env_kwargs=dict(name=game),
-        batch_T=4,  # Four time-steps per sampler iteration.
+        batch_T=1,
         batch_B=1,
         max_decorrelation_steps=0,
         eval_n_envs=10,
@@ -31,7 +31,7 @@ def build_and_train(log_dir, game="cartpole_balance", run_ID=0, cuda_idx=None, e
         algo=algo,
         agent=agent,
         sampler=sampler,
-        n_steps=50e6,
+        n_steps=5e6,
         log_interval_steps=1e3,
         affinity=dict(cuda_idx=cuda_idx),
     )
