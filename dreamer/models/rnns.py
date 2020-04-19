@@ -3,6 +3,7 @@ import torch.distributions as td
 import torch.nn as nn
 import torch.nn.functional as tf
 from rlpyt.utils.collections import namedarraytuple
+from rlpyt.utils.buffer import buffer_method
 
 RSSMState = namedarraytuple('RSSMState', ['mean', 'std', 'stoch', 'deter'])
 
@@ -192,7 +193,7 @@ class RSSMRollout(RollOutModule):
         actions = []
         for t in range(steps):
             state = self.transition_model(action, state)
-            action, _ = policy(state)
+            action, _ = policy(buffer_method(state, 'detach'))  # stop gradients here to only optimize policy
             priors.append(state)
             actions.append(action)
         priors = stack_states(priors, dim=0)
