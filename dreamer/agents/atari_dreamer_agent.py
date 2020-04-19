@@ -7,4 +7,4 @@ from dreamer.models.agent import AtariDreamerModel
 class AtariDreamerAgent(AtariMixin, DreamerAgent):
 
     def __init__(self, ModelCls=AtariDreamerModel, **kwargs):
-        super().__init__(ModelCls=ModelCls, **kwargs)
+        super().__init__(ModelCls=ModelCls, model_kwargs={'action_dist': 'one_hot'}, **kwargs)

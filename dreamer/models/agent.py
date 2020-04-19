@@ -65,8 +65,9 @@ class AgentModel(nn.Module):
             else:
                 action = action_dist.mode()
         else:
-            # cannot propagate gradients with one hot distribution
             action = action_dist.sample()
+            # This doesn't change the value, but gives us straight-through gradients
+            action = action + action_dist.probs - action_dist.probs.detach()
         return action, action_dist
 
     def get_state_representation(self, observation: torch.Tensor, prev_action: torch.Tensor = None,
