@@ -75,7 +75,6 @@ class AgentModel(nn.Module):
             action = action_dist.rsample()
         else:
             action = action_dist.sample()
-        action = action.reshape(*action.shape[:-1], *self.action_shape)
         return action, action_dist
 
     def get_state_representation(self, observation: torch.Tensor, prev_action: torch.Tensor = None,
