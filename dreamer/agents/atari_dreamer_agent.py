@@ -9,4 +9,5 @@ class AtariDreamerAgent(DreamerAgent):
 
     def make_env_to_model_kwargs(self, env_spaces):
         return dict(image_shape=env_spaces.observation.shape,
-                    action_shape=env_spaces.action.shape)
+                    action_shape=env_spaces.action.shape,
+                    action_dist='one_hot')

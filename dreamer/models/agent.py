@@ -21,7 +21,7 @@ class AgentModel(nn.Module):
             image_shape=(3, 64, 64),
             action_hidden_size=200,
             action_layers=3,
-            action_dist='relaxed_one_hot',
+            action_dist='one_hot',
             reward_shape=(1,),
             reward_layers=3,
             reward_hidden=200,
@@ -67,10 +67,13 @@ class AgentModel(nn.Module):
                 action = action_dist.sample()
             else:
                 action = action_dist.mode()
+        elif self.action_dist == 'one_hot':
+            action = action_dist.sample()
+            # This doesn't change the value, but gives us straight-through gradients
+            action = action + action_dist.probs - action_dist.probs.detach()
         elif self.action_dist == 'relaxed_one_hot':
             action = action_dist.rsample()
         else:
-            # cannot propagate gradients with one hot distribution
             action = action_dist.sample()
         action = action.reshape(*action.shape[:-1], *self.action_shape)
         return action, action_dist
