@@ -1,28 +1,23 @@
 import datetime
 import os
 
+from rlpyt.samplers.collections import TrajInfo
 from rlpyt.runners.minibatch_rl import MinibatchRlEval, MinibatchRl
 from rlpyt.samplers.serial.sampler import SerialSampler
 from rlpyt.utils.logging.context import logger_context
 
-from dreamer.agents.atari_dreamer_agent import AtariDreamerAgent
+from dreamer.agents.dmc_dreamer_agent import DMCDreamerAgent
 from dreamer.algos.dreamer_algo import Dreamer
-from dreamer.envs.modified_atari import AtariEnv, AtariTrajInfo
+from dreamer.envs.dmc import DeepMindControl
 
 
-def build_and_train(log_dir, game="pong", run_ID=0, cuda_idx=None, eval=False):
-    env_kwargs = dict(
-        game=game,
-        frame_shape=(64, 64),  # dreamer uses this, default is 80, 104
-        frame_skip=2,  # because dreamer action repeat = 2
-        repeat_action_probability=0.25  # Atari-v0 repeat action probability = 0.25
-    )
+def build_and_train(log_dir, game="cartpole_balance", run_ID=0, cuda_idx=None, eval=False):  # TO!DO
     sampler = SerialSampler(
-        EnvCls=AtariEnv,
-        TrajInfoCls=AtariTrajInfo,  # default traj info + GameScore
-        env_kwargs=env_kwargs,
-        eval_env_kwargs=env_kwargs,
-        batch_T=1,  # Four time-steps per sampler iteration.
+        EnvCls=DeepMindControl,
+        TrajInfoCls=TrajInfo,
+        env_kwargs=dict(name=game),
+        eval_env_kwargs=dict(name=game),
+        batch_T=4,  # Four time-steps per sampler iteration.
         batch_B=1,
         max_decorrelation_steps=0,
         eval_n_envs=10,
@@ -30,8 +25,7 @@ def build_and_train(log_dir, game="pong", run_ID=0, cuda_idx=None, eval=False):
         eval_max_trajectories=5,
     )
     algo = Dreamer()  # Run with defaults.
-    agent = AtariDreamerAgent(train_noise=0.4, eval_noise=0, expl_type="epsilon_greedy",
-                              expl_min=0.1, expl_decay=2000/0.3)
+    agent = DMCDreamerAgent()
     runner_cls = MinibatchRlEval if eval else MinibatchRl
     runner = runner_cls(
         algo=algo,
@@ -52,7 +46,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--game', help='Atari game', default='pong')
+    parser.add_argument('--game', help='DMC game', default='cartpole_balance')
     parser.add_argument('--run-ID', help='run identifier (logging)', type=int, default=0)
     parser.add_argument('--cuda-idx', help='gpu to use ', type=int, default=None)
     default_log_dir = os.path.join(

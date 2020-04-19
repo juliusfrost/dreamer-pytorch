@@ -2,6 +2,11 @@ import gym
 import numpy as np
 from dm_control import suite
 from rlpyt.envs.base import Env
+from rlpyt.utils.collections import namedarraytuple
+from rlpyt.spaces.int_box import IntBox
+from rlpyt.spaces.float_box import FloatBox
+
+DMCInfo = namedarraytuple("DMCInfo", ["discount"])
 
 
 class DeepMindControl(Env):
@@ -22,38 +27,33 @@ class DeepMindControl(Env):
 
     @property
     def observation_space(self):
-        spaces = {}
-        for key, value in self._env.observation_spec().items():
-            spaces[key] = gym.spaces.Box(
-                -np.inf, np.inf, value.shape, dtype=np.float32)
-        spaces['image'] = gym.spaces.Box(
-            0, 255, self._size + (3,), dtype=np.uint8)
-        return gym.spaces.Dict(spaces)
-
+        return IntBox(low=0, high=255, shape=(3,) + self._size,
+            dtype="uint8")
     @property
     def action_space(self):
         spec = self._env.action_spec()
-        return gym.spaces.Box(spec.minimum, spec.maximum, dtype=np.float32)
+        return FloatBox(low=spec.minimum, high=spec.maximum)
 
     def step(self, action):
         time_step = self._env.step(action)
-        obs = dict(time_step.observation)
-        obs['image'] = self.render()
+        _ = dict(time_step.observation)
+        obs = self.render()
         reward = time_step.reward or 0
         done = time_step.last()
-        info = {'discount': np.array(time_step.discount, np.float32)}
+
+        info = DMCInfo(np.array(time_step.discount, np.float32))
         return obs, reward, done, info
 
     def reset(self):
         time_step = self._env.reset()
-        obs = dict(time_step.observation)
-        obs['image'] = self.render()
+        _ = dict(time_step.observation)
+        obs = self.render()
         return obs
 
     def render(self, *args, **kwargs):
         if kwargs.get('mode', 'rgb_array') != 'rgb_array':
             raise ValueError("Only render mode 'rgb_array' is supported.")
-        return self._env.physics.render(*self._size, camera_id=self._camera)
+        return self._env.physics.render(*self._size, camera_id=self._camera).transpose(2, 0, 1)
 
     @property
     def horizon(self):
