@@ -53,7 +53,7 @@ class DeepMindControl(Env):
     def render(self, *args, **kwargs):
         if kwargs.get('mode', 'rgb_array') != 'rgb_array':
             raise ValueError("Only render mode 'rgb_array' is supported.")
-        return self._env.physics.render(*self._size, camera_id=self._camera).transpose(2, 0, 1)
+        return self._env.physics.render(*self._size, camera_id=self._camera).transpose(2, 0, 1).copy()
 
     @property
     def horizon(self):
