@@ -1,7 +1,7 @@
 import torch
 import torch.nn.functional as F
 import torch.distributions
-import copy
+import numpy as np
 
 class TanhBijector(torch.distributions.Transform):
     def __init__(self):
@@ -26,9 +26,7 @@ class TanhBijector(torch.distributions.Transform):
         return y
 
     def log_abs_det_jacobian(self, x, y):
-        x_ = copy.deepcopy(x)
-        log2 = torch.log(torch.tensor(2.))
-        return 2. * (log2 - x_ - F.softplus(-2. * x_))
+        return 2. * (np.log(2) - x - F.softplus(-2. * x))
 
 
 class SampleDist:
