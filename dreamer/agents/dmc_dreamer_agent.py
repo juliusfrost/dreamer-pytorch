@@ -1,5 +1,3 @@
-from rlpyt.agents.dqn.atari.mixin import DMCMixin
-
 from dreamer.agents.dreamer_agent import DreamerAgent
 from dreamer.models.agent import AtariDreamerModel
 
