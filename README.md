@@ -35,6 +35,8 @@ Install tensorboard with `pip install tensorboard` or install [TensorFlow](https
 
 To run tests, install pytest: `pip install pytest`
 
+For any other requirements do `pip install -r requirements.txt`
+
 #### atari
 ```bash
 pip install atari_py
