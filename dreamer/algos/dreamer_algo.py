@@ -19,7 +19,7 @@ class Dreamer(RlAlgorithm):
 
     def __init__(
             self,  # Hyper-parameters
-            batch_size=50,
+            batch_size=16,
             batch_length=50,
             train_every=1000,
             train_steps=100,
@@ -131,6 +131,7 @@ class Dreamer(RlAlgorithm):
             observation = samples_from_replay.all_observation[:-1]  # [t, t+batch_length+1] -> [t, t+batch_length]
             action = samples_from_replay.all_action[1:]  # [t-1, t+batch_length] -> [t, t+batch_length]
             reward = samples_from_replay.all_reward[1:]  # [t-1, t+batch_length] -> [t, t+batch_length]
+            reward = reward.unsqueeze(2)
             loss_inputs = buffer_to((observation, action, reward), self.agent.device)
             loss, loss_info = self.loss(*loss_inputs)
             loss.backward()
