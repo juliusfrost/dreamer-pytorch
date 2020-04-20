@@ -59,10 +59,6 @@ class Dreamer(RlAlgorithm):
         self.update_counter = 0
 
         self.optimizer = None
-        self.learning_rate = model_lr
-        self.model_weight = model_lr / self.learning_rate
-        self.value_weight = value_lr / self.learning_rate
-        self.actor_weight = actor_lr / self.learning_rate
         self.type = type
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples, world_size=1, rank=0):
@@ -82,11 +78,38 @@ class Dreamer(RlAlgorithm):
 
     def optim_initialize(self, rank=0):
         self.rank = rank
-        self.optimizer = self.OptimCls(self.agent.model.parameters(), lr=self.learning_rate, **self.optim_kwargs)
+        model = self.agent.model
+        model_parameters = \
+            list(model.observation_encoder.parameters()) + \
+            list(model.observation_decoder.parameters()) + \
+            list(model.reward_model.parameters()) + \
+            list(model.representation.parameters()) + \
+            list(model.transition.parameters())
+        self.model_optimizer = torch.optim.Adam(model_parameters, lr=self.model_lr, **self.optim_kwargs)
+        self.actor_optimizer = torch.optim.Adam(model.action_decoder.parameters(), lr=self.actor_lr,
+                                                **self.optim_kwargs)
+        self.value_optimizer = torch.optim.Adam(model.value_model.parameters(), lr=self.value_lr, **self.optim_kwargs)
+
         if self.initial_optim_state_dict is not None:
-            self.optimizer.load_state_dict(self.initial_optim_state_dict)
+            self.load_optim_state_dict(self.initial_optim_state_dict)
         # must define these fields to for logging purposes. Used by runner.
         self.opt_info_fields = OptInfo._fields
+
+    def optim_state_dict(self):
+        """Return the optimizer state dict (e.g. Adam); overwrite if using
+                multiple optimizers."""
+        return dict(
+            model_optimizer_dict=self.model_optimizer.state_dict(),
+            actor_optimizer_dict=self.actor_optimizer.state_dict(),
+            value_optimizer_dict=self.value_optimizer.state_dict(),
+        )
+
+    def load_optim_state_dict(self, state_dict):
+        """Load an optimizer state dict; should expect the format returned
+        from ``optim_state_dict().``"""
+        self.model_optimizer.load_state_dict(state_dict['model_optimizer_dict'])
+        self.actor_optimizer.load_state_dict(state_dict['actor_optimizer_dict'])
+        self.value_optimizer.load_state_dict(state_dict['value_optimizer_dict'])
 
     def optimize_agent(self, itr, samples=None, sampler_itr=None):
         itr = itr if sampler_itr is None else sampler_itr
@@ -99,7 +122,9 @@ class Dreamer(RlAlgorithm):
         if itr % self.train_every != 0:
             return opt_info
         for i in tqdm(range(self.train_steps), desc='Imagination'):
-            self.optimizer.zero_grad()
+            self.model_optimizer.zero_grad()
+            self.actor_optimizer.zero_grad()
+            self.value_optimizer.zero_grad()
             samples_from_replay = self.replay_buffer.sample_batch(self._batch_size, self.batch_length)
             observation = samples_from_replay.all_observation[:-1]  # [t, t+batch_length+1] -> [t, t+batch_length]
             action = samples_from_replay.all_action[1:]  # [t-1, t+batch_length] -> [t, t+batch_length]
@@ -107,7 +132,9 @@ class Dreamer(RlAlgorithm):
             loss_inputs = buffer_to((observation, action, reward), self.agent.device)
             loss, loss_info = self.loss(*loss_inputs)
             loss.backward()
-            self.optimizer.step()
+            self.model_optimizer.step()
+            self.actor_optimizer.step()
+            self.value_optimizer.step()
             opt_info.loss.append(loss.item())
             opt_info.model_loss.append(loss_info.model_loss.item())
             opt_info.actor_loss.append(loss_info.actor_loss.item())
@@ -194,7 +221,7 @@ class Dreamer(RlAlgorithm):
         value_loss = -torch.mean(discount * log_prob.unsqueeze(2))
 
         # Loss
-        loss = self.model_weight * model_loss + self.actor_weight * actor_loss + self.value_weight * value_loss
+        loss = model_loss + actor_loss + value_loss
         loss_info = LossInfo(model_loss, actor_loss, value_loss)
         return loss, loss_info
 
