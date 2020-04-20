@@ -9,8 +9,10 @@ from tqdm import tqdm
 from dreamer.algos.replay import initialize_replay_buffer, samples_to_buffer
 from dreamer.models.rnns import get_feat, get_dist, RSSMState
 
-LossInfo = namedarraytuple('LossInfo', ['model_loss', 'actor_loss', 'value_loss'])
-OptInfo = namedarraytuple("OptInfo", ['loss', 'model_loss', 'actor_loss', 'value_loss'])
+loss_info_fields = ['model_loss', 'actor_loss', 'value_loss', 'prior_entropy', 'post_entropy', 'divergence',
+                    'reward_loss', 'image_loss']
+LossInfo = namedarraytuple('LossInfo', loss_info_fields)
+OptInfo = namedarraytuple("OptInfo", ['loss'] + loss_info_fields)
 
 
 class Dreamer(RlAlgorithm):
@@ -222,7 +224,8 @@ class Dreamer(RlAlgorithm):
 
         # Loss
         loss = model_loss + actor_loss + value_loss
-        loss_info = LossInfo(model_loss, actor_loss, value_loss)
+        loss_info = LossInfo(model_loss, actor_loss, value_loss, prior_dist.entropy(), post_dist.entropy(), div,
+                             reward_loss, image_loss)
         return loss, loss_info
 
     def compute_return(self,
