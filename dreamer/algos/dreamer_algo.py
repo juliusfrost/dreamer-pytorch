@@ -139,9 +139,8 @@ class Dreamer(RlAlgorithm):
             self.actor_optimizer.step()
             self.value_optimizer.step()
             opt_info.loss.append(loss.item())
-            opt_info.model_loss.append(loss_info.model_loss.item())
-            opt_info.actor_loss.append(loss_info.actor_loss.item())
-            opt_info.value_loss.append(loss_info.value_loss.item())
+            for field in loss_info_fields:
+                setattr(opt_info, field, getattr(loss_info, field).item())
 
         return opt_info
 
