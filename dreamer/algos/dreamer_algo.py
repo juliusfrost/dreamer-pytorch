@@ -140,7 +140,8 @@ class Dreamer(RlAlgorithm):
             self.value_optimizer.step()
             opt_info.loss.append(loss.item())
             for field in loss_info_fields:
-                setattr(opt_info, field, getattr(loss_info, field).item())
+                if hasattr(opt_info, field):
+                    getattr(opt_info, field).append(getattr(loss_info, field).item())
 
         return opt_info
 
@@ -224,8 +225,13 @@ class Dreamer(RlAlgorithm):
 
         # Loss
         loss = model_loss + actor_loss + value_loss
-        loss_info = LossInfo(model_loss, actor_loss, value_loss, prior_dist.entropy(), post_dist.entropy(), div,
-                             reward_loss, image_loss)
+
+        # loss info
+        with torch.no_grad():
+            prior_ent = torch.mean(prior_dist.entropy())
+            post_ent = torch.mean(post_dist.entropy())
+            loss_info = LossInfo(model_loss, actor_loss, value_loss, prior_ent, post_ent, div, reward_loss, image_loss)
+
         return loss, loss_info
 
     def compute_return(self,
