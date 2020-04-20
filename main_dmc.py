@@ -11,7 +11,7 @@ from dreamer.algos.dreamer_algo import Dreamer
 from dreamer.envs.dmc import DeepMindControl
 
 
-def build_and_train(log_dir, game="cartpole_balance", run_ID=0, cuda_idx=None, eval=False):  # TO!DO
+def build_and_train(log_dir, game="cartpole_balance", run_ID=0, cuda_idx=None, eval=False):
     sampler = SerialSampler(
         EnvCls=DeepMindControl,
         TrajInfoCls=TrajInfo,
@@ -25,7 +25,8 @@ def build_and_train(log_dir, game="cartpole_balance", run_ID=0, cuda_idx=None, e
         eval_max_trajectories=5,
     )
     algo = Dreamer()  # Run with defaults.
-    agent = DMCDreamerAgent()
+    agent = DMCDreamerAgent(train_noise=0.3, eval_noise=0, expl_type="additive_gaussian",
+                              expl_min=None, expl_decay=None)
     runner_cls = MinibatchRlEval if eval else MinibatchRl
     runner = runner_cls(
         algo=algo,
