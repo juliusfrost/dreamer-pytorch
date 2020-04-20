@@ -3,7 +3,7 @@ from rlpyt.algos.base import RlAlgorithm
 from rlpyt.utils.buffer import buffer_to, buffer_method
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.quick_args import save__init__args
-from rlpyt.utils.tensor import to_onehot, infer_leading_dims
+from rlpyt.utils.tensor import infer_leading_dims
 from tqdm import tqdm
 
 from dreamer.algos.replay import initialize_replay_buffer, samples_to_buffer
@@ -85,6 +85,8 @@ class Dreamer(RlAlgorithm):
         self.optimizer = self.OptimCls(self.agent.model.parameters(), lr=self.learning_rate, **self.optim_kwargs)
         if self.initial_optim_state_dict is not None:
             self.optimizer.load_state_dict(self.initial_optim_state_dict)
+        # must define these fields to for logging purposes. Used by runner.
+        self.opt_info_fields = OptInfo._fields
 
     def optimize_agent(self, itr, samples=None, sampler_itr=None):
         itr = itr if sampler_itr is None else sampler_itr
