@@ -24,7 +24,7 @@ class AgentModel(nn.Module):
             action_dist='one_hot',
             reward_shape=(1,),
             reward_layers=3,
-            reward_hidden=200,
+            reward_hidden=300,
             value_shape=(1,),
             value_layers=3,
             value_hidden=200,
