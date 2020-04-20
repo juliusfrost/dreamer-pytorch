@@ -171,18 +171,8 @@ class Dreamer(RlAlgorithm):
         discount = torch.cumprod(discount_arr[:-1], 1)
 
         # Compute losses for each component of the model
-        model_loss = self.model_loss(observation, prior, post, reward)
-        actor_loss = self.actor_loss(discount, returns)
-        value_loss = self.value_loss(imag_feat, discount, returns)
-        loss = self.model_weight * model_loss + self.actor_weight * actor_loss + self.value_weight * value_loss
-        loss_info = LossInfo(model_loss, actor_loss, value_loss)
-        return loss, loss_info
 
-    def model_loss(self, observation: torch.Tensor, prior: RSSMState, post: RSSMState, reward: torch.Tensor):
-        """
-        Compute the model loss for a bunch of data. All vectors are [batch_t, batch_x, vector_dim]
-        """
-        model = self.agent.model
+        # Model Loss
         feat = get_feat(post)
         image_pred = model.observation_decoder(feat)
         reward_pred = model.reward_model(feat)
@@ -193,7 +183,20 @@ class Dreamer(RlAlgorithm):
         div = torch.mean(torch.distributions.kl.kl_divergence(post_dist, prior_dist))
         div = torch.clamp(div, -float('inf'), self.free_nats)
         model_loss = self.kl_scale * div + reward_loss + image_loss
-        return model_loss
+
+        # Actor Loss
+        actor_loss = -torch.mean(discount * returns)
+
+        # Value Loss
+        value_pred = self.agent.model.value_model(imag_feat[:-1])
+        target = returns.detach()  # stop gradients here
+        log_prob = value_pred.log_prob(target)
+        value_loss = -torch.mean(discount * log_prob.unsqueeze(2))
+
+        # Loss
+        loss = self.model_weight * model_loss + self.actor_weight * actor_loss + self.value_weight * value_loss
+        loss_info = LossInfo(model_loss, actor_loss, value_loss)
+        return loss, loss_info
 
     def compute_return(self,
                        reward: torch.Tensor,
@@ -218,20 +221,3 @@ class Dreamer(RlAlgorithm):
             outputs.append(accumulated_reward)
         returns = torch.flip(torch.stack(outputs), [0])
         return returns
-
-    def actor_loss(self, discount: torch.Tensor, returns: torch.Tensor):
-        """
-        Compute loss for the agent/actor model. All vectors are [batch, horizon]
-        """
-        actor_loss = -torch.mean(discount * returns)
-        return actor_loss
-
-    def value_loss(self, imag_feat: torch.Tensor, discount: torch.Tensor, returns: torch.Tensor):
-        """
-        Compute loss for the value model. All vectors are [batch, horizon, vector_dim]
-        """
-        value_pred = self.agent.model.value_model(imag_feat[:-1])
-        target = returns.detach()  # stop gradients here
-        log_prob = value_pred.log_prob(target)
-        value_loss = -torch.mean(discount * log_prob.unsqueeze(2))
-        return value_loss
