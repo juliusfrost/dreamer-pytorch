@@ -8,3 +8,5 @@ psutil
 pyprind
 rlpyt
 tqdm
+tensorboard
+moviepy
