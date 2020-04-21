@@ -258,7 +258,7 @@ class Dreamer(RlAlgorithm):
         """
         lead_dim, batch_t, batch_b, img_shape = infer_leading_dims(observation, 3)
         model = self.agent.model
-        ground_truth = observation[:, :n].type(self.type) / 255.0
+        ground_truth = observation[:, :n] + 0.5
         reconstruction = image_pred.mean[:t, :n]
 
         prev_state = post[t - 1, :n]
