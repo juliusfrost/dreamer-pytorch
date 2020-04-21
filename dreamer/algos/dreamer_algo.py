@@ -8,6 +8,7 @@ from tqdm import tqdm
 
 from dreamer.algos.replay import initialize_replay_buffer, samples_to_buffer
 from dreamer.models.rnns import get_feat, get_dist, RSSMState
+from dreamer.utils.logging import video_summary
 
 loss_info_fields = ['model_loss', 'actor_loss', 'value_loss', 'prior_entropy', 'post_entropy', 'divergence',
                     'reward_loss', 'image_loss']
@@ -51,6 +52,8 @@ class Dreamer(RlAlgorithm):
             kl_scale=1,
             type=torch.float,
             prefill=5000,
+            log_video=True,
+            video_every=int(1e3)
     ):
         super().__init__()
         if optim_kwargs is None:
@@ -135,7 +138,7 @@ class Dreamer(RlAlgorithm):
             reward = samples_from_replay.all_reward[1:]  # [t-1, t+batch_length] -> [t, t+batch_length]
             reward = reward.unsqueeze(2)
             loss_inputs = buffer_to((observation, action, reward), self.agent.device)
-            loss, loss_info = self.loss(*loss_inputs)
+            loss, loss_info = self.loss(*loss_inputs, itr, i)
             loss.backward()
             torch.nn.utils.clip_grad_norm_(self.model_parameters, self.grad_clip)
             torch.nn.utils.clip_grad_norm_(self.actor_parameters, self.grad_clip)
@@ -150,7 +153,7 @@ class Dreamer(RlAlgorithm):
 
         return opt_info
 
-    def loss(self, observation, action, reward):
+    def loss(self, observation, action, reward, sample_itr: int, opt_itr: int):
         """
         Compute the loss for a batch of data.  This includes computing the model and reward losses on the given data,
         as well as using the dynamics model to generate additional rollouts, which are used for the actor and value
@@ -158,6 +161,8 @@ class Dreamer(RlAlgorithm):
         :param observation: size(batch_t, batch_b, c, h ,w)
         :param action: size(batch_t, batch_b) if categorical
         :param reward: size(batch_t, batch_b, 1)
+        :param sample_itr: sample iteration
+        :param opt_itr: optimization iteration
         :return: FloatTensor containing the loss
         """
         model = self.agent.model
@@ -237,7 +242,34 @@ class Dreamer(RlAlgorithm):
             post_ent = torch.mean(post_dist.entropy())
             loss_info = LossInfo(model_loss, actor_loss, value_loss, prior_ent, post_ent, div, reward_loss, image_loss)
 
+            if self.log_video:
+                # if opt_itr == self.train_steps - 1 and sample_itr % self.video_every == 0:
+                self.write_videos(observation, action, image_pred, post, step=sample_itr)
+
         return loss, loss_info
+
+    def write_videos(self, observation, action, image_pred, post, step=None, n=4, t=5):
+        """
+        observation shape T,N,C,H,W
+        generates n rollouts with the model.
+        For t time steps, observations are used to generate state representations.
+        Then for time steps t+1:T, uses the state transition model.
+        Outputs 3 different frames to video: ground truth, reconstruction, error
+        """
+        lead_dim, batch_t, batch_b, img_shape = infer_leading_dims(observation, 3)
+        model = self.agent.model
+        ground_truth = observation[:, :n].type(self.type) / 255.0
+        reconstruction = image_pred.mean[:t, :n]
+
+        prev_state = post[t - 1, :n]
+        prior = model.rollout.rollout_transition(batch_t - t, action[t:, :n], prev_state)
+        imagined = model.observation_decoder(get_feat(prior)).mean
+        model = torch.cat((reconstruction, imagined), dim=0) + 0.5
+        error = (model - ground_truth + 1) / 2
+        # concatenate vertically on height dimension
+        openl = torch.cat((ground_truth, model, error), dim=3)
+        openl = openl.transpose(1, 0)  # N,T,C,H,W
+        video_summary('videos/model_error', openl, step)
 
     def compute_return(self,
                        reward: torch.Tensor,
