@@ -81,16 +81,18 @@ class Dreamer(RlAlgorithm):
     def optim_initialize(self, rank=0):
         self.rank = rank
         model = self.agent.model
-        model_parameters = \
+        self.model_parameters = model_parameters = \
             list(model.observation_encoder.parameters()) + \
             list(model.observation_decoder.parameters()) + \
             list(model.reward_model.parameters()) + \
             list(model.representation.parameters()) + \
             list(model.transition.parameters())
-        self.model_optimizer = torch.optim.Adam(model_parameters, lr=self.model_lr, **self.optim_kwargs)
-        self.actor_optimizer = torch.optim.Adam(model.action_decoder.parameters(), lr=self.actor_lr,
+        self.actor_parameters = model.action_decoder.parameters()
+        self.value_parameters = model.value_model.parameters()
+        self.model_optimizer = torch.optim.Adam(self.model_parameters, lr=self.model_lr, **self.optim_kwargs)
+        self.actor_optimizer = torch.optim.Adam(self.actor_parameters, lr=self.actor_lr,
                                                 **self.optim_kwargs)
-        self.value_optimizer = torch.optim.Adam(model.value_model.parameters(), lr=self.value_lr, **self.optim_kwargs)
+        self.value_optimizer = torch.optim.Adam(self.value_parameters, lr=self.value_lr, **self.optim_kwargs)
 
         if self.initial_optim_state_dict is not None:
             self.load_optim_state_dict(self.initial_optim_state_dict)
@@ -135,6 +137,9 @@ class Dreamer(RlAlgorithm):
             loss_inputs = buffer_to((observation, action, reward), self.agent.device)
             loss, loss_info = self.loss(*loss_inputs)
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model_parameters, self.grad_clip)
+            torch.nn.utils.clip_grad_norm_(self.actor_parameters, self.grad_clip)
+            torch.nn.utils.clip_grad_norm_(self.value_parameters, self.grad_clip)
             self.model_optimizer.step()
             self.actor_optimizer.step()
             self.value_optimizer.step()
