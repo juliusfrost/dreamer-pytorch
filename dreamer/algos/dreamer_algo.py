@@ -9,7 +9,7 @@ from tqdm import tqdm
 from dreamer.algos.replay import initialize_replay_buffer, samples_to_buffer
 from dreamer.models.rnns import get_feat, get_dist, RSSMState
 from dreamer.utils.logging import video_summary
-
+import copy
 loss_info_fields = ['model_loss', 'actor_loss', 'value_loss', 'prior_entropy', 'post_entropy', 'divergence',
                     'reward_loss', 'image_loss']
 LossInfo = namedarraytuple('LossInfo', loss_info_fields)
@@ -51,9 +51,9 @@ class Dreamer(RlAlgorithm):
             free_nats=3,
             kl_scale=1,
             type=torch.float,
-            prefill=5000,
+            prefill=100,
             log_video=True,
-            video_every=int(1e3)
+            video_every=int(1e1)
     ):
         super().__init__()
         if optim_kwargs is None:
@@ -129,6 +129,21 @@ class Dreamer(RlAlgorithm):
         if itr % self.train_every != 0:
             return opt_info
         for i in tqdm(range(self.train_steps), desc='Imagination'):
+
+            # OLD PARAMS
+
+            # old_value_params = copy.deepcopy(list(self.agent.model.value_model.parameters()))
+            model = self.agent.model
+            # model_parameters = \
+            #     list(model.observation_encoder.parameters()) + \
+            #     list(model.observation_decoder.parameters()) + \
+            #     list(model.reward_model.parameters()) + \
+            #     list(model.representation.parameters()) + \
+            #     list(model.transition.parameters())
+            # old_model_params = copy.deepcopy(model_parameters)
+            # old_actor_params = copy.deepcopy(list(model.action_decoder.parameters()))
+
+
             self.model_optimizer.zero_grad()
             self.actor_optimizer.zero_grad()
             self.value_optimizer.zero_grad()
@@ -138,14 +153,70 @@ class Dreamer(RlAlgorithm):
             reward = samples_from_replay.all_reward[1:]  # [t-1, t+batch_length] -> [t, t+batch_length]
             reward = reward.unsqueeze(2)
             loss_inputs = buffer_to((observation, action, reward), self.agent.device)
-            loss, loss_info = self.loss(*loss_inputs, itr, i)
-            loss.backward()
+            model_loss, actor_loss, value_loss, loss_info = self.loss(*loss_inputs, itr, i)
+
+            model_loss.backward(retain_graph=True)
             torch.nn.utils.clip_grad_norm_(self.model_parameters, self.grad_clip)
-            torch.nn.utils.clip_grad_norm_(self.actor_parameters, self.grad_clip)
-            torch.nn.utils.clip_grad_norm_(self.value_parameters, self.grad_clip)
             self.model_optimizer.step()
+
+            self.actor_optimizer.zero_grad()
+            actor_loss.backward(retain_graph=True)
+            torch.nn.utils.clip_grad_norm_(self.actor_parameters, self.grad_clip)
             self.actor_optimizer.step()
+
+
+            self.value_optimizer.zero_grad()
+            value_loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.value_parameters, self.grad_clip)
             self.value_optimizer.step()
+
+
+
+            # model_loss.backward()
+            # actor_loss.backward()
+            # value_loss.backward()
+            # torch.nn.utils.clip_grad_norm_(self.model_parameters, self.grad_clip)
+            # torch.nn.utils.clip_grad_norm_(self.actor_parameters, self.grad_clip)
+            # torch.nn.utils.clip_grad_norm_(self.value_parameters, self.grad_clip)
+            # self.model_optimizer.step()
+            # self.actor_optimizer.step()
+            # self.value_optimizer.step()
+
+
+
+
+
+
+            # REMOVE THIS!
+            new_value_params = list(self.agent.model.value_model.parameters())
+            new_model_params = \
+                list(model.observation_encoder.parameters()) + \
+                list(model.observation_decoder.parameters()) + \
+                list(model.reward_model.parameters()) + \
+                list(model.representation.parameters()) + \
+                list(model.transition.parameters())
+            new_actor_params = list(model.action_decoder.parameters())
+
+            # Check clip grad is OK
+            for x, y in zip(self.value_parameters, new_value_params):
+                assert torch.all(torch.eq(x, y))
+            for x, y in zip(self.model_parameters, new_model_params):
+                assert torch.all(torch.eq(x, y))
+            for x, y in zip(self.actor_parameters, new_actor_params):
+                assert torch.all(torch.eq(x, y))
+            #
+            # # Check all params get updated
+            # for x, y in zip(old_value_params, new_value_params):
+            #     assert not torch.all(torch.eq(x, y)), (x, y)
+            # for x, y in zip(old_model_params, new_model_params):
+            #     if torch.all(torch.eq(x, y)):
+            #         print("same")
+            #     else:
+            #         print("different")
+            #     # assert torch.all(torch.eq(x, y)), (x, y)
+            # for x, y in zip(old_actor_params, new_actor_params):
+            #     assert not torch.all(torch.eq(x, y)), (x, y)
+            loss = model_loss + actor_loss + value_loss
             opt_info.loss.append(loss.item())
             for field in loss_info_fields:
                 if hasattr(opt_info, field):
@@ -243,12 +314,12 @@ class Dreamer(RlAlgorithm):
             loss_info = LossInfo(model_loss, actor_loss, value_loss, prior_ent, post_ent, div, reward_loss, image_loss)
 
             if self.log_video:
-                # if opt_itr == self.train_steps - 1 and sample_itr % self.video_every == 0:
-                self.write_videos(observation, action, image_pred, post, step=sample_itr)
+                if opt_itr == self.train_steps - 1 and sample_itr % self.video_every == 0:
+                    self.write_videos(observation, action, image_pred, post, step=sample_itr)
 
-        return loss, loss_info
+        return model_loss, actor_loss, value_loss, loss_info
 
-    def write_videos(self, observation, action, image_pred, post, step=None, n=4, t=5):
+    def write_videos(self, observation, action, image_pred, post, step=None, n=4, t=25):
         """
         observation shape T,N,C,H,W
         generates n rollouts with the model.
