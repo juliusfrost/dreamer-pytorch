@@ -3,21 +3,23 @@ from rlpyt.algos.base import RlAlgorithm
 from rlpyt.utils.buffer import buffer_to, buffer_method
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.quick_args import save__init__args
-from rlpyt.utils.tensor import to_onehot, infer_leading_dims
+from rlpyt.utils.tensor import infer_leading_dims
 from tqdm import tqdm
 
 from dreamer.algos.replay import initialize_replay_buffer, samples_to_buffer
 from dreamer.models.rnns import get_feat, get_dist, RSSMState
 
-LossInfo = namedarraytuple('LossInfo', ['model_loss', 'actor_loss', 'value_loss'])
-OptInfo = namedarraytuple("OptInfo", ['loss', 'model_loss', 'actor_loss', 'value_loss'])
+loss_info_fields = ['model_loss', 'actor_loss', 'value_loss', 'prior_entropy', 'post_entropy', 'divergence',
+                    'reward_loss', 'image_loss']
+LossInfo = namedarraytuple('LossInfo', loss_info_fields)
+OptInfo = namedarraytuple("OptInfo", ['loss'] + loss_info_fields)
 
 
 class Dreamer(RlAlgorithm):
 
     def __init__(
             self,  # Hyper-parameters
-            batch_size=50,
+            batch_size=16,
             batch_length=50,
             train_every=1000,
             train_steps=100,
@@ -59,10 +61,6 @@ class Dreamer(RlAlgorithm):
         self.update_counter = 0
 
         self.optimizer = None
-        self.learning_rate = model_lr
-        self.model_weight = model_lr / self.learning_rate
-        self.value_weight = value_lr / self.learning_rate
-        self.actor_weight = actor_lr / self.learning_rate
         self.type = type
 
     def initialize(self, agent, n_itr, batch_spec, mid_batch_reset, examples, world_size=1, rank=0):
@@ -82,9 +80,40 @@ class Dreamer(RlAlgorithm):
 
     def optim_initialize(self, rank=0):
         self.rank = rank
-        self.optimizer = self.OptimCls(self.agent.model.parameters(), lr=self.learning_rate, **self.optim_kwargs)
+        model = self.agent.model
+        self.model_parameters = model_parameters = \
+            list(model.observation_encoder.parameters()) + \
+            list(model.observation_decoder.parameters()) + \
+            list(model.reward_model.parameters()) + \
+            list(model.representation.parameters()) + \
+            list(model.transition.parameters())
+        self.actor_parameters = model.action_decoder.parameters()
+        self.value_parameters = model.value_model.parameters()
+        self.model_optimizer = torch.optim.Adam(self.model_parameters, lr=self.model_lr, **self.optim_kwargs)
+        self.actor_optimizer = torch.optim.Adam(self.actor_parameters, lr=self.actor_lr,
+                                                **self.optim_kwargs)
+        self.value_optimizer = torch.optim.Adam(self.value_parameters, lr=self.value_lr, **self.optim_kwargs)
+
         if self.initial_optim_state_dict is not None:
-            self.optimizer.load_state_dict(self.initial_optim_state_dict)
+            self.load_optim_state_dict(self.initial_optim_state_dict)
+        # must define these fields to for logging purposes. Used by runner.
+        self.opt_info_fields = OptInfo._fields
+
+    def optim_state_dict(self):
+        """Return the optimizer state dict (e.g. Adam); overwrite if using
+                multiple optimizers."""
+        return dict(
+            model_optimizer_dict=self.model_optimizer.state_dict(),
+            actor_optimizer_dict=self.actor_optimizer.state_dict(),
+            value_optimizer_dict=self.value_optimizer.state_dict(),
+        )
+
+    def load_optim_state_dict(self, state_dict):
+        """Load an optimizer state dict; should expect the format returned
+        from ``optim_state_dict().``"""
+        self.model_optimizer.load_state_dict(state_dict['model_optimizer_dict'])
+        self.actor_optimizer.load_state_dict(state_dict['actor_optimizer_dict'])
+        self.value_optimizer.load_state_dict(state_dict['value_optimizer_dict'])
 
     def optimize_agent(self, itr, samples=None, sampler_itr=None):
         itr = itr if sampler_itr is None else sampler_itr
@@ -97,19 +126,27 @@ class Dreamer(RlAlgorithm):
         if itr % self.train_every != 0:
             return opt_info
         for i in tqdm(range(self.train_steps), desc='Imagination'):
-            self.optimizer.zero_grad()
+            self.model_optimizer.zero_grad()
+            self.actor_optimizer.zero_grad()
+            self.value_optimizer.zero_grad()
             samples_from_replay = self.replay_buffer.sample_batch(self._batch_size, self.batch_length)
             observation = samples_from_replay.all_observation[:-1]  # [t, t+batch_length+1] -> [t, t+batch_length]
             action = samples_from_replay.all_action[1:]  # [t-1, t+batch_length] -> [t, t+batch_length]
             reward = samples_from_replay.all_reward[1:]  # [t-1, t+batch_length] -> [t, t+batch_length]
+            reward = reward.unsqueeze(2)
             loss_inputs = buffer_to((observation, action, reward), self.agent.device)
             loss, loss_info = self.loss(*loss_inputs)
             loss.backward()
-            self.optimizer.step()
+            torch.nn.utils.clip_grad_norm_(self.model_parameters, self.grad_clip)
+            torch.nn.utils.clip_grad_norm_(self.actor_parameters, self.grad_clip)
+            torch.nn.utils.clip_grad_norm_(self.value_parameters, self.grad_clip)
+            self.model_optimizer.step()
+            self.actor_optimizer.step()
+            self.value_optimizer.step()
             opt_info.loss.append(loss.item())
-            opt_info.model_loss.append(loss_info.model_loss.item())
-            opt_info.actor_loss.append(loss_info.actor_loss.item())
-            opt_info.value_loss.append(loss_info.value_loss.item())
+            for field in loss_info_fields:
+                if hasattr(opt_info, field):
+                    getattr(opt_info, field).append(getattr(loss_info, field).item())
 
         return opt_info
 
@@ -169,18 +206,8 @@ class Dreamer(RlAlgorithm):
         discount = torch.cumprod(discount_arr[:-1], 1)
 
         # Compute losses for each component of the model
-        model_loss = self.model_loss(observation, prior, post, reward)
-        actor_loss = self.actor_loss(discount, returns)
-        value_loss = self.value_loss(imag_feat, discount, returns)
-        loss = self.model_weight * model_loss + self.actor_weight * actor_loss + self.value_weight * value_loss
-        loss_info = LossInfo(model_loss, actor_loss, value_loss)
-        return loss, loss_info
 
-    def model_loss(self, observation: torch.Tensor, prior: RSSMState, post: RSSMState, reward: torch.Tensor):
-        """
-        Compute the model loss for a bunch of data. All vectors are [batch_t, batch_x, vector_dim]
-        """
-        model = self.agent.model
+        # Model Loss
         feat = get_feat(post)
         image_pred = model.observation_decoder(feat)
         reward_pred = model.reward_model(feat)
@@ -191,7 +218,26 @@ class Dreamer(RlAlgorithm):
         div = torch.mean(torch.distributions.kl.kl_divergence(post_dist, prior_dist))
         div = torch.clamp(div, -float('inf'), self.free_nats)
         model_loss = self.kl_scale * div + reward_loss + image_loss
-        return model_loss
+
+        # Actor Loss
+        actor_loss = -torch.mean(discount * returns)
+
+        # Value Loss
+        value_pred = self.agent.model.value_model(imag_feat[:-1])
+        target = returns.detach()  # stop gradients here
+        log_prob = value_pred.log_prob(target)
+        value_loss = -torch.mean(discount * log_prob.unsqueeze(2))
+
+        # Loss
+        loss = model_loss + actor_loss + value_loss
+
+        # loss info
+        with torch.no_grad():
+            prior_ent = torch.mean(prior_dist.entropy())
+            post_ent = torch.mean(post_dist.entropy())
+            loss_info = LossInfo(model_loss, actor_loss, value_loss, prior_ent, post_ent, div, reward_loss, image_loss)
+
+        return loss, loss_info
 
     def compute_return(self,
                        reward: torch.Tensor,
@@ -216,20 +262,3 @@ class Dreamer(RlAlgorithm):
             outputs.append(accumulated_reward)
         returns = torch.flip(torch.stack(outputs), [0])
         return returns
-
-    def actor_loss(self, discount: torch.Tensor, returns: torch.Tensor):
-        """
-        Compute loss for the agent/actor model. All vectors are [batch, horizon]
-        """
-        actor_loss = -torch.mean(discount * returns)
-        return actor_loss
-
-    def value_loss(self, imag_feat: torch.Tensor, discount: torch.Tensor, returns: torch.Tensor):
-        """
-        Compute loss for the value model. All vectors are [batch, horizon, vector_dim]
-        """
-        value_pred = self.agent.model.value_model(imag_feat[:-1])
-        target = returns.detach()  # stop gradients here
-        log_prob = value_pred.log_prob(target)
-        value_loss = -torch.mean(discount * log_prob.unsqueeze(2))
-        return value_loss
