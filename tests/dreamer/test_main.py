@@ -13,7 +13,7 @@ from dreamer.envs.one_hot import OneHotAction
 from dreamer.envs.wrapper import make_wapper
 
 
-def build_and_train(log_dir, game="pong", run_ID=0, cuda_idx=None, eval=False):
+def build_and_train(game="pong", run_ID=0, cuda_idx=None, eval=False):
     env_kwargs = dict(
         game=game,
         frame_shape=(64, 64),  # dreamer uses this, default is 80, 104
@@ -55,19 +55,10 @@ def build_and_train(log_dir, game="pong", run_ID=0, cuda_idx=None, eval=False):
         log_interval_steps=10,
         affinity=dict(cuda_idx=cuda_idx),
     )
-    config = dict(game=game)
-    name = "dreamer_" + game
-    with logger_context(log_dir, run_ID, name, config, snapshot_mode="last", override_prefix=True,
-                        use_summary_writer=True):
-        runner.train()
+    runner.train()
 
 
 def test_main():
-    log_dir = os.path.join(
-        os.path.dirname(__file__),
-        'data',
-        'test',
-        datetime.datetime.now().strftime("%Y%m%d"))
     if platform.system() == 'Darwin':  # if mac-os
         return
-    build_and_train(log_dir)
+    build_and_train()
