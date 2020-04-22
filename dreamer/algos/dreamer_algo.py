@@ -54,7 +54,9 @@ class Dreamer(RlAlgorithm):
             type=torch.float,
             prefill=5000,
             log_video=True,
-            video_every=int(1e1)
+            video_every=int(1e1),
+            video_summary_t=25,
+            video_summary_b=4,
     ):
         super().__init__()
         if optim_kwargs is None:
@@ -265,7 +267,8 @@ class Dreamer(RlAlgorithm):
 
             if self.log_video:
                 if opt_itr == self.train_steps - 1 and sample_itr % self.video_every == 0:
-                    self.write_videos(observation, action, image_pred, post, step=sample_itr)
+                    self.write_videos(observation, action, image_pred, post, step=sample_itr, n=self.video_summary_b,
+                                      t=self.video_summary_t)
 
         return model_loss, actor_loss, value_loss, loss_info
 
