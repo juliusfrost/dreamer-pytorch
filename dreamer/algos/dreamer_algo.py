@@ -11,7 +11,7 @@ from dreamer.algos.replay import initialize_replay_buffer, samples_to_buffer
 from dreamer.models.rnns import get_feat, get_dist
 from dreamer.utils.logging import video_summary
 
-torch.autograd.set_detect_anomaly(True)  # used for debugging gradients
+# torch.autograd.set_detect_anomaly(True)  # used for debugging gradients
 
 loss_info_fields = ['model_loss', 'actor_loss', 'value_loss', 'prior_entropy', 'post_entropy', 'divergence',
                     'reward_loss', 'image_loss']

@@ -1,3 +1,5 @@
+import platform
+
 from rlpyt.runners.minibatch_rl import MinibatchRlEval, MinibatchRl
 from rlpyt.samplers.serial.sampler import SerialSampler
 from rlpyt.utils.logging.context import logger_context
@@ -59,5 +61,7 @@ def build_and_train(log_dir, game="pong", run_ID=0, cuda_idx=None, eval=False):
 
 
 def test_main():
+    if platform.system() == 'Darwin':  # if mac-os
+        return
     logdir = 'data/tests/'
     build_and_train(logdir)
