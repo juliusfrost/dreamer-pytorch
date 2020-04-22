@@ -1,3 +1,5 @@
+import datetime
+import os
 import platform
 
 from rlpyt.runners.minibatch_rl import MinibatchRlEval, MinibatchRl
@@ -61,7 +63,11 @@ def build_and_train(log_dir, game="pong", run_ID=0, cuda_idx=None, eval=False):
 
 
 def test_main():
+    log_dir = os.path.join(
+        os.path.dirname(__file__),
+        'data',
+        'test',
+        datetime.datetime.now().strftime("%Y%m%d"))
     if platform.system() == 'Darwin':  # if mac-os
         return
-    logdir = 'data/tests/'
-    build_and_train(logdir)
+    build_and_train(log_dir)
