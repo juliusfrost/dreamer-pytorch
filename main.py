@@ -23,6 +23,7 @@ def build_and_train(log_dir, game="pong", run_ID=0, cuda_idx=None, eval=False, s
         game=game,
         frame_shape=(64, 64),  # dreamer uses this, default is 80, 104
         frame_skip=2,  # because dreamer action repeat = 2
+        num_img_obs=1,  # get only the last observation. returns black and white frame
         repeat_action_probability=0.25  # Atari-v0 repeat action probability = 0.25
     )
     factory_method = make_wapper(AtariEnv, [OneHotAction], [{}])

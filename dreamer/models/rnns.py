@@ -192,8 +192,9 @@ class RSSMRollout(RollOutModule):
         priors = []
         actions = []
         for t in range(steps):
-            state = self.transition_model(action, state)
-            action, _ = policy(buffer_method(state, 'detach'))  # stop gradients here to only optimize policy
+            with torch.no_grad():  # stop gradients here to only optimize policy
+                state = self.transition_model(action, state)
+            action, _ = policy(state)
             priors.append(state)
             actions.append(action)
         priors = stack_states(priors, dim=0)
