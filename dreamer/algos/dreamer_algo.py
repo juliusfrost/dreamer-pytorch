@@ -243,8 +243,8 @@ class Dreamer(RlAlgorithm):
             loss_info = LossInfo(model_loss, actor_loss, value_loss, prior_ent, post_ent, div, reward_loss, image_loss)
 
             if self.log_video:
-                # if opt_itr == self.train_steps - 1 and sample_itr % self.video_every == 0:
-                self.write_videos(observation, action, image_pred, post, step=sample_itr)
+                if opt_itr == self.train_steps - 1 and sample_itr % self.video_every == 0:
+                    self.write_videos(observation, action, image_pred, post, step=sample_itr)
 
         return loss, loss_info
 
