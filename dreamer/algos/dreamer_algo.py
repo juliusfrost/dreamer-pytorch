@@ -1,5 +1,5 @@
+import numpy as np
 import torch
-import  numpy as np
 from rlpyt.algos.base import RlAlgorithm
 from rlpyt.utils.buffer import buffer_to, buffer_method
 from rlpyt.utils.collections import namedarraytuple
@@ -8,9 +8,9 @@ from rlpyt.utils.tensor import infer_leading_dims
 from tqdm import tqdm
 
 from dreamer.algos.replay import initialize_replay_buffer, samples_to_buffer
-from dreamer.models.rnns import get_feat, get_dist, RSSMState
+from dreamer.models.rnns import get_feat, get_dist
 from dreamer.utils.logging import video_summary
-import copy
+
 loss_info_fields = ['model_loss', 'actor_loss', 'value_loss', 'prior_entropy', 'post_entropy', 'divergence',
                     'reward_loss', 'image_loss']
 LossInfo = namedarraytuple('LossInfo', loss_info_fields)
@@ -142,12 +142,12 @@ class Dreamer(RlAlgorithm):
             loss_inputs = buffer_to((observation, action, reward), self.agent.device)
             model_loss, actor_loss, value_loss, loss_info = self.loss(*loss_inputs, itr, i)
 
-            model_loss.backward(retain_graph=True)
+            model_loss.backward()
             torch.nn.utils.clip_grad_norm_(self.model_parameters, self.grad_clip)
             self.model_optimizer.step()
 
             self.actor_optimizer.zero_grad()
-            actor_loss.backward(retain_graph=True)
+            actor_loss.backward()
             torch.nn.utils.clip_grad_norm_(self.actor_parameters, self.grad_clip)
             self.actor_optimizer.step()
 
@@ -199,10 +199,30 @@ class Dreamer(RlAlgorithm):
         # Flatten our data (so first dimension is batch_t * batch_b = batch_size)
         # since we're going to do a new rollout starting from each state visited in each batch.
 
-        # detach gradient here since the actor and value gradients do not need to propagate through representation
-        flat_post = buffer_method(post, 'reshape', batch_size, -1)
-        flat_post = buffer_method(flat_post, 'detach')
-        flat_action = action.reshape(batch_size, -1).detach()
+        # Compute losses for each component of the model
+
+        # Model Loss
+        feat = get_feat(post)
+        image_pred = model.observation_decoder(feat)
+        reward_pred = model.reward_model(feat)
+        reward_loss = -torch.mean(reward_pred.log_prob(reward))
+        img_count = np.prod(observation.shape[-3:])
+        image_loss = -torch.mean(image_pred.log_prob(observation))
+        image_loss = image_loss * img_count
+        prior_dist = get_dist(prior)
+        post_dist = get_dist(post)
+        div = torch.mean(torch.distributions.kl.kl_divergence(post_dist, prior_dist))
+        div = torch.clamp(div, -float('inf'), self.free_nats)
+        model_loss = self.kl_scale * div + reward_loss + image_loss
+
+        # ------------------------------------------  Gradient Barrier  ------------------------------------------------
+        # Don't let gradients pass through to prevent overwriting gradients.
+        # Actor Loss
+
+        # remove gradients from previously calculated tensors
+        with torch.no_grad():
+            flat_post = buffer_method(post, 'reshape', batch_size, -1)
+            flat_action = action.reshape(batch_size, -1)
         # Rollout the policy for self.horizon steps. Variable names with imag_ indicate this data is imagined not real.
         # imag_feat shape is [horizon, batch_t * batch_b, feature_size]
         imag_dist, _ = model.rollout.rollout_policy(self.horizon, model.policy, flat_action, flat_post)
@@ -221,31 +241,22 @@ class Dreamer(RlAlgorithm):
                                       bootstrap=value[-1], lambda_=self.discount_lambda)
         discount = torch.cumprod(discount_arr[:-1], 1)
 
-        # Compute losses for each component of the model
-
-        # Model Loss
-        feat = get_feat(post)
-        image_pred = model.observation_decoder(feat)
-        reward_pred = model.reward_model(feat)
-        reward_loss = -torch.mean(reward_pred.log_prob(reward))
-        img_count = np.prod(observation.shape[-3:])
-        image_loss = -torch.mean(image_pred.log_prob(observation))
-        image_loss = image_loss * img_count
-        prior_dist = get_dist(prior)
-        post_dist = get_dist(post)
-        div = torch.mean(torch.distributions.kl.kl_divergence(post_dist, prior_dist))
-        div = torch.clamp(div, -float('inf'), self.free_nats)
-        model_loss = self.kl_scale * div + reward_loss + image_loss
-
-        # Actor Loss
         actor_loss = -torch.mean(discount * returns)
 
+        # ------------------------------------------  Gradient Barrier  ------------------------------------------------
+        # Don't let gradients pass through to prevent overwriting gradients.
         # Value Loss
-        value_pred = self.agent.model.value_model(imag_feat[:-1])
-        target = returns.detach()  # stop gradients here
-        log_prob = value_pred.log_prob(target)
-        value_loss = -torch.mean(discount * log_prob.unsqueeze(2))
 
+        # remove gradients from previously calculated tensors
+        with torch.no_grad():
+            value_feat = imag_feat[:-1].detach()
+            value_discount = discount.detach()
+            value_target = returns.detach()
+        value_pred = model.value_model(value_feat)
+        log_prob = value_pred.log_prob(value_target)
+        value_loss = -torch.mean(value_discount * log_prob.unsqueeze(2))
+
+        # ------------------------------------------  Gradient Barrier  ------------------------------------------------
         # loss info
         with torch.no_grad():
             prior_ent = torch.mean(prior_dist.entropy())
