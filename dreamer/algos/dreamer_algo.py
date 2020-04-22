@@ -1,4 +1,5 @@
 import torch
+import  numpy as np
 from rlpyt.algos.base import RlAlgorithm
 from rlpyt.utils.buffer import buffer_to, buffer_method
 from rlpyt.utils.collections import namedarraytuple
@@ -51,7 +52,7 @@ class Dreamer(RlAlgorithm):
             free_nats=3,
             kl_scale=1,
             type=torch.float,
-            prefill=100,
+            prefill=5000,
             log_video=True,
             video_every=int(1e1)
     ):
@@ -130,20 +131,6 @@ class Dreamer(RlAlgorithm):
             return opt_info
         for i in tqdm(range(self.train_steps), desc='Imagination'):
 
-            # OLD PARAMS
-
-            # old_value_params = copy.deepcopy(list(self.agent.model.value_model.parameters()))
-            model = self.agent.model
-            # model_parameters = \
-            #     list(model.observation_encoder.parameters()) + \
-            #     list(model.observation_decoder.parameters()) + \
-            #     list(model.reward_model.parameters()) + \
-            #     list(model.representation.parameters()) + \
-            #     list(model.transition.parameters())
-            # old_model_params = copy.deepcopy(model_parameters)
-            # old_actor_params = copy.deepcopy(list(model.action_decoder.parameters()))
-
-
             self.model_optimizer.zero_grad()
             self.actor_optimizer.zero_grad()
             self.value_optimizer.zero_grad()
@@ -164,58 +151,11 @@ class Dreamer(RlAlgorithm):
             torch.nn.utils.clip_grad_norm_(self.actor_parameters, self.grad_clip)
             self.actor_optimizer.step()
 
-
             self.value_optimizer.zero_grad()
             value_loss.backward()
             torch.nn.utils.clip_grad_norm_(self.value_parameters, self.grad_clip)
             self.value_optimizer.step()
 
-
-
-            # model_loss.backward()
-            # actor_loss.backward()
-            # value_loss.backward()
-            # torch.nn.utils.clip_grad_norm_(self.model_parameters, self.grad_clip)
-            # torch.nn.utils.clip_grad_norm_(self.actor_parameters, self.grad_clip)
-            # torch.nn.utils.clip_grad_norm_(self.value_parameters, self.grad_clip)
-            # self.model_optimizer.step()
-            # self.actor_optimizer.step()
-            # self.value_optimizer.step()
-
-
-
-
-
-
-            # REMOVE THIS!
-            new_value_params = list(self.agent.model.value_model.parameters())
-            new_model_params = \
-                list(model.observation_encoder.parameters()) + \
-                list(model.observation_decoder.parameters()) + \
-                list(model.reward_model.parameters()) + \
-                list(model.representation.parameters()) + \
-                list(model.transition.parameters())
-            new_actor_params = list(model.action_decoder.parameters())
-
-            # Check clip grad is OK
-            for x, y in zip(self.value_parameters, new_value_params):
-                assert torch.all(torch.eq(x, y))
-            for x, y in zip(self.model_parameters, new_model_params):
-                assert torch.all(torch.eq(x, y))
-            for x, y in zip(self.actor_parameters, new_actor_params):
-                assert torch.all(torch.eq(x, y))
-            #
-            # # Check all params get updated
-            # for x, y in zip(old_value_params, new_value_params):
-            #     assert not torch.all(torch.eq(x, y)), (x, y)
-            # for x, y in zip(old_model_params, new_model_params):
-            #     if torch.all(torch.eq(x, y)):
-            #         print("same")
-            #     else:
-            #         print("different")
-            #     # assert torch.all(torch.eq(x, y)), (x, y)
-            # for x, y in zip(old_actor_params, new_actor_params):
-            #     assert not torch.all(torch.eq(x, y)), (x, y)
             loss = model_loss + actor_loss + value_loss
             opt_info.loss.append(loss.item())
             for field in loss_info_fields:
@@ -288,7 +228,9 @@ class Dreamer(RlAlgorithm):
         image_pred = model.observation_decoder(feat)
         reward_pred = model.reward_model(feat)
         reward_loss = -torch.mean(reward_pred.log_prob(reward))
+        img_count = np.prod(observation.shape[-3:])
         image_loss = -torch.mean(image_pred.log_prob(observation))
+        image_loss = image_loss * img_count
         prior_dist = get_dist(prior)
         post_dist = get_dist(post)
         div = torch.mean(torch.distributions.kl.kl_divergence(post_dist, prior_dist))
@@ -303,9 +245,6 @@ class Dreamer(RlAlgorithm):
         target = returns.detach()  # stop gradients here
         log_prob = value_pred.log_prob(target)
         value_loss = -torch.mean(discount * log_prob.unsqueeze(2))
-
-        # Loss
-        loss = model_loss + actor_loss + value_loss
 
         # loss info
         with torch.no_grad():
