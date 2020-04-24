@@ -24,6 +24,8 @@ def build_and_train(log_dir, game="pong", run_ID=0, cuda_idx=None, eval=False, s
         action_repeat=2,
         size=(64, 64),
         grayscale=False,
+        life_done=True,
+        sticky_actions=True,
     )
     factory_method = make_wapper(AtariEnv, [OneHotAction], [{}])
     sampler = SerialSampler(
