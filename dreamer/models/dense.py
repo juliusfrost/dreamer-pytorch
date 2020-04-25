@@ -5,7 +5,8 @@ import torch.nn as nn
 
 
 class DenseModel(nn.Module):
-    def __init__(self, feature_size, output_shape, layers, hidden_size, dist='normal', activation=nn.ELU):
+    def __init__(self, feature_size: int, output_shape: tuple, layers: int, hidden_size: int, dist='normal',
+                 activation=nn.ELU):
         super().__init__()
         self._output_shape = output_shape
         self._layers = layers
@@ -27,12 +28,10 @@ class DenseModel(nn.Module):
         return nn.Sequential(*model)
 
     def forward(self, features):
-        x = self.model(features)
-        # TODO: Seems to do nothing in pytorch code. Come back if there are errors!
-        x = torch.reshape(x, tuple(np.array(np.concatenate((features.shape[:-1], self._output_shape), axis=0),
-                                            dtype=np.int)))  # It makes the size of output = (batch_size,)
+        dist_inputs = self.model(features)
+        reshaped_inputs = torch.reshape(dist_inputs, features.shape[:-1] + self._output_shape)
         if self._dist == 'normal':
-            return td.independent.Independent(td.Normal(x, 1), len(self._output_shape))
+            return td.independent.Independent(td.Normal(reshaped_inputs, 1), len(self._output_shape))
         if self._dist == 'binary':
-            return td.independent.Independent(td.Bernoulli(logits=x), len(self._output_shape))
+            return td.independent.Independent(td.Bernoulli(logits=reshaped_inputs), len(self._output_shape))
         raise NotImplementedError(self._dist)

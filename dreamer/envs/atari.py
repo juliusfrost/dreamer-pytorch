@@ -1,13 +1,12 @@
 import threading
-from collections import namedtuple
 
 import numpy as np
 from PIL import Image
+from rlpyt.envs.atari.atari_env import AtariTrajInfo
 from rlpyt.envs.base import Env, EnvStep
 from rlpyt.spaces.int_box import IntBox
-from rlpyt.envs.atari.atari_env import AtariTrajInfo
 
-EnvInfo = namedtuple("EnvInfo", ["game_score", "traj_done"])
+from dreamer.envs.env import EnvInfo
 
 AtariTrajInfo = AtariTrajInfo
 
@@ -82,7 +81,7 @@ class AtariEnv(Env):
                 else:
                     self._env.ale.getScreenRGB2(self._buffers[index])
         obs = self._get_obs()
-        env_info = EnvInfo(total_reward, done)
+        env_info = EnvInfo(None, total_reward, done)
         return EnvStep(obs, total_reward, done, env_info)
 
     def render(self, mode):

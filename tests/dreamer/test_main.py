@@ -1,27 +1,28 @@
-import datetime
-import os
-import platform
-
 from rlpyt.runners.minibatch_rl import MinibatchRlEval, MinibatchRl
 from rlpyt.samplers.serial.sampler import SerialSampler
-from rlpyt.utils.logging.context import logger_context
 
 from dreamer.agents.atari_dreamer_agent import AtariDreamerAgent
 from dreamer.algos.dreamer_algo import Dreamer
-from dreamer.envs.modified_atari import AtariEnv, AtariTrajInfo
+from dreamer.envs.atari import AtariEnv, AtariTrajInfo
 from dreamer.envs.one_hot import OneHotAction
+from dreamer.envs.time_limit import TimeLimit
 from dreamer.envs.wrapper import make_wapper
 
 
 def build_and_train(game="pong", run_ID=0, cuda_idx=None, eval=False):
+    action_repeat = 2
     env_kwargs = dict(
-        game=game,
-        frame_shape=(64, 64),  # dreamer uses this, default is 80, 104
-        frame_skip=2,  # because dreamer action repeat = 2
-        num_img_obs=1,  # get only the last observation. returns black and white frame
-        repeat_action_probability=0.25  # Atari-v0 repeat action probability = 0.25
+        name=game,
+        action_repeat=action_repeat,
+        size=(64, 64),
+        grayscale=False,
+        life_done=True,
+        sticky_actions=True,
     )
-    factory_method = make_wapper(AtariEnv, [OneHotAction], [{}])
+    factory_method = make_wapper(
+        AtariEnv,
+        [OneHotAction, TimeLimit],
+        [dict(), dict(duration=1000 / action_repeat)])
     sampler = SerialSampler(
         EnvCls=factory_method,
         TrajInfoCls=AtariTrajInfo,  # default traj info + GameScore
@@ -59,6 +60,4 @@ def build_and_train(game="pong", run_ID=0, cuda_idx=None, eval=False):
 
 
 def test_main():
-    if platform.system() == 'Darwin':  # if mac-os
-        return
     build_and_train()
