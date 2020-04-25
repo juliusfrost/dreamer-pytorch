@@ -1,5 +1,6 @@
-import numpy as np
+from rlpyt.envs.base import EnvStep
 from dreamer.envs.wrapper import EnvWrapper
+from dreamer.envs.env import EnvInfo
 
 
 class TimeLimit(EnvWrapper):
@@ -14,10 +15,12 @@ class TimeLimit(EnvWrapper):
         self._step += 1
         if self._step >= self._duration:
             done = True
-            if 'discount' not in info:
-                info['discount'] = np.array(1.0).astype(np.float32)
+            # if 'discount' not in info:
+            #     info['discount'] = np.array(1.0).astype(np.float32)
+            if isinstance(info, EnvInfo):
+                info = EnvInfo(info.discount, info.game_score, done)
             self._step = None
-        return obs, reward, done, info
+        return EnvStep(obs, reward, done, info)
 
     def reset(self):
         self._step = 0

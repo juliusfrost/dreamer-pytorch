@@ -6,7 +6,10 @@ from rlpyt.utils.collections import namedarraytuple
 from rlpyt.spaces.int_box import IntBox
 from rlpyt.spaces.float_box import FloatBox
 
-DMCInfo = namedarraytuple("DMCInfo", ["discount"])
+from dreamer.envs.env import EnvInfo
+
+
+# DMCInfo = namedarraytuple("DMCInfo", ["discount", 'traj_done'])
 
 
 class DeepMindControl(Env):
@@ -28,7 +31,8 @@ class DeepMindControl(Env):
     @property
     def observation_space(self):
         return IntBox(low=0, high=255, shape=(3,) + self._size,
-            dtype="uint8")
+                      dtype="uint8")
+
     @property
     def action_space(self):
         spec = self._env.action_spec()
@@ -41,7 +45,7 @@ class DeepMindControl(Env):
         reward = time_step.reward or 0
         done = time_step.last()
 
-        info = DMCInfo(np.array(time_step.discount, np.float32))
+        info = EnvInfo(np.array(time_step.discount, np.float32), None, done)
         return EnvStep(obs, reward, done, info)
 
     def reset(self):

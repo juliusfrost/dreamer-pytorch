@@ -12,6 +12,7 @@ from dreamer.algos.dreamer_algo import Dreamer
 from dreamer.envs.atari import AtariEnv, AtariTrajInfo
 from dreamer.envs.wrapper import make_wapper
 from dreamer.envs.one_hot import OneHotAction
+from dreamer.envs.time_limit import TimeLimit
 
 
 def build_and_train(log_dir, game="pong", run_ID=0, cuda_idx=None, eval=False, save_model='last', load_model_path=None):
@@ -19,15 +20,19 @@ def build_and_train(log_dir, game="pong", run_ID=0, cuda_idx=None, eval=False, s
     agent_state_dict = params.get('agent_state_dict')
     optimizer_state_dict = params.get('optimizer_state_dict')
 
+    action_repeat = 2
     env_kwargs = dict(
         name=game,
-        action_repeat=2,
+        action_repeat=action_repeat,
         size=(64, 64),
         grayscale=False,
         life_done=True,
         sticky_actions=True,
     )
-    factory_method = make_wapper(AtariEnv, [OneHotAction], [{}])
+    factory_method = make_wapper(
+        AtariEnv,
+        [OneHotAction, TimeLimit],
+        [dict(), dict(duration=1000 / action_repeat)])
     sampler = SerialSampler(
         EnvCls=factory_method,
         TrajInfoCls=AtariTrajInfo,  # default traj info + GameScore
