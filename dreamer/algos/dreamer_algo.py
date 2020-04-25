@@ -89,18 +89,16 @@ class Dreamer(RlAlgorithm):
     def optim_initialize(self, rank=0):
         self.rank = rank
         model = self.agent.model
-        self.model_parameters = model_parameters = \
+        model_parameters = \
             list(model.observation_encoder.parameters()) + \
             list(model.observation_decoder.parameters()) + \
             list(model.reward_model.parameters()) + \
             list(model.representation.parameters()) + \
             list(model.transition.parameters())
-        self.actor_parameters = model.action_decoder.parameters()
-        self.value_parameters = model.value_model.parameters()
-        self.model_optimizer = torch.optim.Adam(self.model_parameters, lr=self.model_lr, **self.optim_kwargs)
-        self.actor_optimizer = torch.optim.Adam(self.actor_parameters, lr=self.actor_lr,
+        self.model_optimizer = torch.optim.Adam(model_parameters, lr=self.model_lr, **self.optim_kwargs)
+        self.actor_optimizer = torch.optim.Adam(model.action_decoder.parameters(), lr=self.actor_lr,
                                                 **self.optim_kwargs)
-        self.value_optimizer = torch.optim.Adam(self.value_parameters, lr=self.value_lr, **self.optim_kwargs)
+        self.value_optimizer = torch.optim.Adam(model.value_model.parameters(), lr=self.value_lr, **self.optim_kwargs)
 
         if self.initial_optim_state_dict is not None:
             self.load_optim_state_dict(self.initial_optim_state_dict)
@@ -135,9 +133,6 @@ class Dreamer(RlAlgorithm):
             return opt_info
         for i in tqdm(range(self.train_steps), desc='Imagination'):
 
-            self.model_optimizer.zero_grad()
-            self.actor_optimizer.zero_grad()
-            self.value_optimizer.zero_grad()
             samples_from_replay = self.replay_buffer.sample_batch(self._batch_size, self.batch_length)
             observation = samples_from_replay.all_observation[:-1]  # [t, t+batch_length+1] -> [t, t+batch_length]
             action = samples_from_replay.all_action[1:]  # [t-1, t+batch_length] -> [t, t+batch_length]
@@ -146,19 +141,28 @@ class Dreamer(RlAlgorithm):
             loss_inputs = buffer_to((observation, action, reward), self.agent.device)
             model_loss, actor_loss, value_loss, loss_info = self.loss(*loss_inputs, itr, i)
 
-            model_loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.model_parameters, self.grad_clip)
-            self.model_optimizer.step()
+            model = self.agent.model
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.actor_parameters, self.grad_clip)
+            torch.nn.utils.clip_grad_norm_(model.action_decoder.parameters(), self.grad_clip)
             self.actor_optimizer.step()
 
             self.value_optimizer.zero_grad()
             value_loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.value_parameters, self.grad_clip)
+            torch.nn.utils.clip_grad_norm_(model.value_model.parameters(), self.grad_clip)
             self.value_optimizer.step()
+
+            self.model_optimizer.zero_grad()
+            model_loss.backward()
+            model_parameters = \
+                list(model.observation_encoder.parameters()) + \
+                list(model.observation_decoder.parameters()) + \
+                list(model.reward_model.parameters()) + \
+                list(model.representation.parameters()) + \
+                list(model.transition.parameters())
+            torch.nn.utils.clip_grad_norm_(model_parameters, self.grad_clip)
+            self.model_optimizer.step()
 
             loss = model_loss + actor_loss + value_loss
             opt_info.loss.append(loss.item())
