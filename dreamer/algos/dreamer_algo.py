@@ -11,7 +11,7 @@ from dreamer.algos.replay import initialize_replay_buffer, samples_to_buffer
 from dreamer.models.rnns import get_feat, get_dist
 from dreamer.utils.logging import video_summary
 
-# torch.autograd.set_detect_anomaly(True)  # used for debugging gradients
+torch.autograd.set_detect_anomaly(True)  # used for debugging gradients
 
 loss_info_fields = ['model_loss', 'actor_loss', 'value_loss', 'prior_entropy', 'post_entropy', 'divergence',
                     'reward_loss', 'image_loss']
@@ -230,18 +230,29 @@ class Dreamer(RlAlgorithm):
         # remove gradients from previously calculated tensors
         with torch.no_grad():
             flat_post = buffer_method(post, 'reshape', batch_size, -1)
-            flat_action = action.reshape(batch_size, -1)
         # Rollout the policy for self.horizon steps. Variable names with imag_ indicate this data is imagined not real.
         # imag_feat shape is [horizon, batch_t * batch_b, feature_size]
-        imag_dist, _ = model.rollout.rollout_policy(self.horizon, model.policy, flat_action, flat_post)
+        imag_dist, _ = model.rollout.rollout_policy(self.horizon, model.policy, flat_post)
 
         # Use state features (deterministic and stochastic) to predict the image and reward
         imag_feat = get_feat(imag_dist)  # [horizon, batch_t * batch_b, feature_size]
         # Assumes these are normal distributions. In the TF code it's be mode, but for a normal distribution mean = mode
         # If we want to use other distributions we'll have to fix this.
         # We calculate the target here so no grad necessary
+
+        # freeze model parameters as only action model gradients needed
+        for p in model.reward_model.parameters():
+            p.requires_grad = False
+        for p in model.value_model.parameters():
+            p.requires_grad = False
+
         imag_reward = model.reward_model(imag_feat).mean
         value = model.value_model(imag_feat).mean
+
+        for p in model.reward_model.parameters():
+            p.requires_grad = True
+        for p in model.value_model.parameters():
+            p.requires_grad = True
 
         # Compute the exponential discounted sum of rewards
         discount_arr = self.discount * torch.ones_like(imag_reward)
