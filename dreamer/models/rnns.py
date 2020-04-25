@@ -195,8 +195,9 @@ class RSSMRollout(RollOutModule):
         for p in self.transition_model.parameters():
             p.requires_grad = False
 
+        state = buffer_method(state, 'detach')
         for t in range(steps):
-            action, _ = policy(buffer_method(state, 'detach'))
+            action, _ = policy(state)
             state = self.transition_model(action, state)
             next_states.append(state)
             actions.append(action)

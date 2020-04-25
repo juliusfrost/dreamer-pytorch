@@ -64,7 +64,7 @@ class AgentModel(nn.Module):
         action_dist = self.action_decoder(feat)
         if self.action_dist == 'tanh_normal':
             if self.training:  # use agent.train(bool) or agent.eval()
-                action = action_dist.sample()
+                action = action_dist.rsample()
             else:
                 action = action_dist.mode()
         elif self.action_dist == 'one_hot':
