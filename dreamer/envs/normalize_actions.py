@@ -1,7 +1,7 @@
 import numpy as np
 import gym
 from dreamer.envs.wrapper import EnvWrapper
-
+from rlpyt.spaces.float_box import FloatBox
 
 class NormalizeActions(EnvWrapper):
 
@@ -17,7 +17,7 @@ class NormalizeActions(EnvWrapper):
     def action_space(self):
         low = np.where(self._mask, -np.ones_like(self._low), self._low)
         high = np.where(self._mask, np.ones_like(self._low), self._high)
-        return gym.spaces.Box(low, high, dtype=np.float32)
+        return FloatBox(low, high, dtype=np.float32)
 
     def step(self, action):
         original = (action + 1) / 2 * (self._high - self._low) + self._low
