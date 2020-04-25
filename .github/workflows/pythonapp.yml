@@ -2,9 +2,9 @@ name: tests
 
 on:
   push:
-    branches: [ master, agent ]
+    branches: [ master ]
   pull_request:
-    branches: [ master, agent ]
+    branches: [ master ]
 
 jobs:
   build:
@@ -24,7 +24,7 @@ jobs:
         python -m pip install --upgrade pip setuptools wheel
     - name: Install PyTorch
       run: |
-        pip install torch==1.4.0+cpu torchvision==0.5.0+cpu -f https://download.pytorch.org/whl/torch_stable.html || pip install torch torchvision
+        pip install torch==1.4.0+cpu torchvision==0.5.0+cpu -f https://download.pytorch.org/whl/torch_stable.html || pip install torch==1.4.0 torchvision==0.5.0
     - name: Install dependencies
       run: |
         pip install git+https://github.com/astooke/rlpyt.git
