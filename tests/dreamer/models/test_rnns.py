@@ -57,7 +57,7 @@ def test_rollouts():
     assert post.deter.shape == (time_steps, batch_size, deterministic_size)
 
     prior = rollout_module.rollout_transition(time_steps, action, transition_model.initial_state(batch_size))
-    assert isinstance(post, RSSMState)
+    assert isinstance(prior, RSSMState)
     assert prior.mean.shape == (time_steps, batch_size, stochastic_size)
     assert prior.std.shape == (time_steps, batch_size, stochastic_size)
     assert prior.stoch.shape == (time_steps, batch_size, stochastic_size)
@@ -70,9 +70,7 @@ def test_rollouts():
         action_dist = SampleDist(torch.distributions.Normal(mean, std))
         return action, action_dist
 
-    prev_action = torch.randn(batch_size, action_size)
-    prior, actions = rollout_module.rollout_policy(time_steps, policy, prev_action,
-                                                   transition_model.initial_state(batch_size))
+    prior, actions = rollout_module.rollout_policy(time_steps, policy, post[-1])
     assert isinstance(prior, RSSMState)
     assert prior.mean.shape == (time_steps, batch_size, stochastic_size)
     assert prior.std.shape == (time_steps, batch_size, stochastic_size)
