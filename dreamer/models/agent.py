@@ -29,11 +29,14 @@ class AgentModel(nn.Module):
             value_layers=3,
             value_hidden=200,
             dtype=torch.float,
+            state_size=None,
             **kwargs,
     ):
         super().__init__()
         self.observation_encoder = ObservationEncoder(shape=image_shape)
         encoder_embed_size = self.observation_encoder.embed_size
+        if state_size is not None:
+            encoder_embed_size += state_size
         decoder_embed_size = stochastic_size + deterministic_size
         self.observation_decoder = ObservationDecoder(embed_size=decoder_embed_size, shape=image_shape)
         self.action_shape = action_shape
@@ -51,6 +54,8 @@ class AgentModel(nn.Module):
         self.dtype = dtype
         self.stochastic_size = stochastic_size
         self.deterministic_size = deterministic_size
+        self.use_state = state_size is not None
+        self.state_size = state_size
 
     def forward(self, observation: torch.Tensor, prev_action: torch.Tensor = None, prev_state: RSSMState = None):
         state = self.get_state_representation(observation, prev_action, prev_state)
@@ -77,19 +82,22 @@ class AgentModel(nn.Module):
             action = action_dist.sample()
         return action, action_dist
 
-    def get_state_representation(self, observation: torch.Tensor, prev_action: torch.Tensor = None,
+    def get_state_representation(self, img_obs: torch.Tensor, state_obs: torch.Tensor, prev_action: torch.Tensor = None,
                                  prev_state: RSSMState = None):
         """
 
-        :param observation: size(batch, channels, width, height)
+        :param img_obs: size(batch, channels, width, height)
+        :param state_obs: size(batch, state_dim) or None
         :param prev_action: size(batch, action_size)
         :param prev_state: RSSMState: size(batch, state_size)
         :return: RSSMState
         """
-        obs_embed = self.observation_encoder(observation)
+        obs_embed = self.observation_encoder(img_obs)
+        if state_obs is not None:
+            obs_embed = torch.cat([obs_embed, state_obs], dim=1)
         if prev_action is None:
-            prev_action = torch.zeros(observation.size(0), self.action_size,
-                                      device=observation.device, dtype=observation.dtype)
+            prev_action = torch.zeros(img_obs.size(0), self.action_size,
+                                      device=img_obs.device, dtype=img_obs.dtype)
         if prev_state is None:
             prev_state = self.representation.initial_state(prev_action.size(0), device=prev_action.device,
                                                            dtype=prev_action.dtype)
@@ -113,13 +121,21 @@ class AgentModel(nn.Module):
 
 class AtariDreamerModel(AgentModel):
     def forward(self, observation: torch.Tensor, prev_action: torch.Tensor = None, prev_state: RSSMState = None):
-        lead_dim, T, B, img_shape = infer_leading_dims(observation, 3)
-        observation = observation.reshape(T * B, *img_shape).type(self.dtype) / 255.0 - 0.5
+        if isinstance(observation, tuple):
+            img_obs, state_obs = observation
+            state_obs = state_obs.to(self.dtype).to(prev_action.device)
+            if len(state_obs.shape) == 1:
+                state_obs = state_obs.unsqueeze(0)
+        else:
+            img_obs = observation
+            state_obs = None
+        lead_dim, T, B, img_shape = infer_leading_dims(img_obs, 3)
+        img_obs = img_obs.reshape(T * B, *img_shape).type(self.dtype) / 255.0 - 0.5
         prev_action = prev_action.reshape(T * B, -1).to(self.dtype)
         if prev_state is None:
             prev_state = self.representation.initial_state(prev_action.size(0), device=prev_action.device,
                                                            dtype=self.dtype)
-        state = self.get_state_representation(observation, prev_action, prev_state)
+        state = self.get_state_representation(img_obs, state_obs, prev_action, prev_state)
 
         action, action_dist = self.policy(state)
         return_spec = ModelReturnSpec(action, state)

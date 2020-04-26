@@ -184,11 +184,18 @@ class Dreamer(RlAlgorithm):
         :param opt_itr: optimization iteration
         :return: FloatTensor containing the loss
         """
+
         model = self.agent.model
 
         # Extract tensors from the Samples object
         # They all have the batch_t dimension first, but we'll put the batch_b dimension first.
         # Also, we convert all tensors to floats so they can be fed into our models.
+
+        if isinstance(observation, tuple):
+            state_observation = observation.state
+            observation = observation.image
+        else:
+            state_observation = None
 
         lead_dim, batch_t, batch_b, img_shape = infer_leading_dims(observation, 3)
         # squeeze batch sizes to single batch dimension for imagination roll-out
@@ -198,6 +205,9 @@ class Dreamer(RlAlgorithm):
         observation = observation.type(self.type) / 255.0 - 0.5
         # embed the image
         embed = model.observation_encoder(observation)
+        if state_observation is not None:
+            state_observation = state_observation.to(embed.dtype).to(embed.device)
+            embed = torch.cat([embed, state_observation], dim=2)
 
         # if we want to continue the the agent state from the previous time steps, we can do it like so:
         # prev_state = samples.agent.agent_info.prev_state[0]

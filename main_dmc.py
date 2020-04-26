@@ -24,8 +24,8 @@ def build_and_train(log_dir, game="cartpole_balance", run_ID=0, cuda_idx=None, e
     sampler = SerialSampler(
         EnvCls=factory_method,
         TrajInfoCls=TrajInfo,
-        env_kwargs=dict(name=game),
-        eval_env_kwargs=dict(name=game),
+        env_kwargs=dict(name=game, use_state=args.state),
+        eval_env_kwargs=dict(name=game, use_state=args.state),
         batch_T=1,
         batch_B=1,
         max_decorrelation_steps=0,
@@ -59,6 +59,7 @@ if __name__ == "__main__":
     parser.add_argument('--game', help='DMC game', default='cartpole_balance')
     parser.add_argument('--run-ID', help='run identifier (logging)', type=int, default=0)
     parser.add_argument('--cuda-idx', help='gpu to use ', type=int, default=None)
+    parser.add_argument('--state', help='to train faster, include state too', action='store_true')
     default_log_dir = os.path.join(
         os.path.dirname(__file__),
         'data',
