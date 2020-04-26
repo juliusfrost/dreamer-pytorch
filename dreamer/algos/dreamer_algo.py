@@ -158,6 +158,11 @@ class Dreamer(RlAlgorithm):
             torch.nn.utils.clip_grad_norm_(get_parameters(self.value_modules), self.grad_clip)
             self.value_optimizer.step()
 
+            self.model_optimizer.zero_grad()
+            model_loss.backward()
+            torch.nn.utils.clip_grad_norm_(get_parameters(self.model_modules), self.grad_clip)
+            self.model_optimizer.step()
+
             loss = model_loss + actor_loss + value_loss
             opt_info.loss.append(loss.item())
             for field in loss_info_fields:
