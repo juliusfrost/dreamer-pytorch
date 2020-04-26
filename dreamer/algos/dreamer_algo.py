@@ -19,6 +19,13 @@ LossInfo = namedarraytuple('LossInfo', loss_info_fields)
 OptInfo = namedarraytuple("OptInfo", ['loss'] + loss_info_fields)
 
 
+def get_parameters(modules):
+    model_parameters = []
+    for module in modules:
+        model_parameters += list(module.parameters())
+    return model_parameters
+
+
 class Dreamer(RlAlgorithm):
 
     def __init__(
@@ -59,6 +66,7 @@ class Dreamer(RlAlgorithm):
             video_every=int(1e1),
             video_summary_t=25,
             video_summary_b=4,
+            use_pcont=False,
     ):
         super().__init__()
         if optim_kwargs is None:
@@ -89,16 +97,20 @@ class Dreamer(RlAlgorithm):
     def optim_initialize(self, rank=0):
         self.rank = rank
         model = self.agent.model
-        model_parameters = \
-            list(model.observation_encoder.parameters()) + \
-            list(model.observation_decoder.parameters()) + \
-            list(model.reward_model.parameters()) + \
-            list(model.representation.parameters()) + \
-            list(model.transition.parameters())
-        self.model_optimizer = torch.optim.Adam(model_parameters, lr=self.model_lr, **self.optim_kwargs)
-        self.actor_optimizer = torch.optim.Adam(model.action_decoder.parameters(), lr=self.actor_lr,
+        self.model_modules = [model.observation_encoder,
+                              model.observation_decoder,
+                              model.reward_model,
+                              model.representation,
+                              model.transition]
+        if self.use_pcont:
+            self.model_modules += [model.pcont]
+        self.actor_modules = [model.action_decoder]
+        self.value_modules = [model.value_model]
+        self.model_optimizer = torch.optim.Adam(get_parameters(self.model_modules), lr=self.model_lr,
                                                 **self.optim_kwargs)
-        self.value_optimizer = torch.optim.Adam(model.value_model.parameters(), lr=self.value_lr, **self.optim_kwargs)
+        self.actor_optimizer = torch.optim.Adam(get_parameters(self.actor_modules), lr=self.actor_lr,
+                                                **self.optim_kwargs)
+        self.value_optimizer = torch.optim.Adam(get_parameters(self.model_modules), lr=self.value_lr, **self.optim_kwargs)
 
         if self.initial_optim_state_dict is not None:
             self.load_optim_state_dict(self.initial_optim_state_dict)
@@ -141,28 +153,15 @@ class Dreamer(RlAlgorithm):
             loss_inputs = buffer_to((observation, action, reward), self.agent.device)
             model_loss, actor_loss, value_loss, loss_info = self.loss(*loss_inputs, itr, i)
 
-            model = self.agent.model
-
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.action_decoder.parameters(), self.grad_clip)
+            torch.nn.utils.clip_grad_norm_(get_parameters(self.actor_modules), self.grad_clip)
             self.actor_optimizer.step()
 
             self.value_optimizer.zero_grad()
             value_loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.value_model.parameters(), self.grad_clip)
+            torch.nn.utils.clip_grad_norm_(get_parameters(self.value_modules), self.grad_clip)
             self.value_optimizer.step()
-
-            self.model_optimizer.zero_grad()
-            model_loss.backward()
-            model_parameters = \
-                list(model.observation_encoder.parameters()) + \
-                list(model.observation_decoder.parameters()) + \
-                list(model.reward_model.parameters()) + \
-                list(model.representation.parameters()) + \
-                list(model.transition.parameters())
-            torch.nn.utils.clip_grad_norm_(model_parameters, self.grad_clip)
-            self.model_optimizer.step()
 
             loss = model_loss + actor_loss + value_loss
             opt_info.loss.append(loss.item())
