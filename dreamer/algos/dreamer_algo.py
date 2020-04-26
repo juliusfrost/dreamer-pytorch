@@ -10,6 +10,7 @@ from tqdm import tqdm
 from dreamer.algos.replay import initialize_replay_buffer, samples_to_buffer
 from dreamer.models.rnns import get_feat, get_dist
 from dreamer.utils.logging import video_summary
+from dreamer.utils.module import get_parameters, FreezeParameters
 
 torch.autograd.set_detect_anomaly(True)  # used for debugging gradients
 
@@ -17,13 +18,6 @@ loss_info_fields = ['model_loss', 'actor_loss', 'value_loss', 'prior_entropy', '
                     'reward_loss', 'image_loss']
 LossInfo = namedarraytuple('LossInfo', loss_info_fields)
 OptInfo = namedarraytuple("OptInfo", ['loss'] + loss_info_fields)
-
-
-def get_parameters(modules):
-    model_parameters = []
-    for module in modules:
-        model_parameters += list(module.parameters())
-    return model_parameters
 
 
 class Dreamer(RlAlgorithm):
@@ -110,7 +104,8 @@ class Dreamer(RlAlgorithm):
                                                 **self.optim_kwargs)
         self.actor_optimizer = torch.optim.Adam(get_parameters(self.actor_modules), lr=self.actor_lr,
                                                 **self.optim_kwargs)
-        self.value_optimizer = torch.optim.Adam(get_parameters(self.model_modules), lr=self.value_lr, **self.optim_kwargs)
+        self.value_optimizer = torch.optim.Adam(get_parameters(self.model_modules), lr=self.value_lr,
+                                                **self.optim_kwargs)
 
         if self.initial_optim_state_dict is not None:
             self.load_optim_state_dict(self.initial_optim_state_dict)
@@ -240,21 +235,14 @@ class Dreamer(RlAlgorithm):
         # We calculate the target here so no grad necessary
 
         # freeze model parameters as only action model gradients needed
-        for p in model.reward_model.parameters():
-            p.requires_grad = False
-        for p in model.value_model.parameters():
-            p.requires_grad = False
-
-        imag_reward = model.reward_model(imag_feat).mean
-        value = model.value_model(imag_feat).mean
-
-        for p in model.reward_model.parameters():
-            p.requires_grad = True
-        for p in model.value_model.parameters():
-            p.requires_grad = True
-
+        with FreezeParameters(self.model_modules + self.value_modules):
+            imag_reward = model.reward_model(imag_feat).mean
+            value = model.value_model(imag_feat).mean
         # Compute the exponential discounted sum of rewards
-        discount_arr = self.discount * torch.ones_like(imag_reward)
+        if self.use_pcont:
+            discount_arr = model.pcont(imag_feat).mean
+        else:
+            discount_arr = self.discount * torch.ones_like(imag_reward)
         returns = self.compute_return(imag_reward[:-1], value[:-1], discount_arr[:-1],
                                       bootstrap=value[-1], lambda_=self.discount_lambda)
         discount = torch.cumprod(discount_arr[:-1], 1)
