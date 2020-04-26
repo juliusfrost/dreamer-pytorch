@@ -148,20 +148,21 @@ class Dreamer(RlAlgorithm):
             loss_inputs = buffer_to((observation, action, reward), self.agent.device)
             model_loss, actor_loss, value_loss, loss_info = self.loss(*loss_inputs, itr, i)
 
+            self.model_optimizer.zero_grad()
+            model_loss.backward()
+            torch.nn.utils.clip_grad_norm_(get_parameters(self.model_modules), self.grad_clip)
+
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
             torch.nn.utils.clip_grad_norm_(get_parameters(self.actor_modules), self.grad_clip)
-            self.actor_optimizer.step()
 
             self.value_optimizer.zero_grad()
             value_loss.backward()
             torch.nn.utils.clip_grad_norm_(get_parameters(self.value_modules), self.grad_clip)
-            self.value_optimizer.step()
 
-            self.model_optimizer.zero_grad()
-            model_loss.backward()
-            torch.nn.utils.clip_grad_norm_(get_parameters(self.model_modules), self.grad_clip)
             self.model_optimizer.step()
+            self.actor_optimizer.step()
+            self.value_optimizer.step()
 
             loss = model_loss + actor_loss + value_loss
             opt_info.loss.append(loss.item())
