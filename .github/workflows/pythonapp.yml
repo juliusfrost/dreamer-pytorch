@@ -28,7 +28,6 @@ jobs:
         pip install torch==${{ matrix.pytorch-version }}+cpu torchvision==0.6.0+cpu -f https://download.pytorch.org/whl/torch_stable.html || pip install torch==${{ matrix.pytorch-version }} torchvision==0.6.0
     - name: Install dependencies
       run: |
-        pip install git+https://github.com/astooke/rlpyt.git
         pip install -r requirements.txt
     - name: Lint with flake8
       run: |
