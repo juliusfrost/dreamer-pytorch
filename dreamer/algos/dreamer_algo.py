@@ -259,7 +259,7 @@ class Dreamer(RlAlgorithm):
         returns = self.compute_return(imag_reward[:-1], value[:-1], discount_arr[:-1],
                                       bootstrap=value[-1], lambda_=self.discount_lambda)
         # Make the top row 1 so the cumulative product starts with discount^0
-        discount_arr[0] = 1
+        discount_arr = torch.cat([torch.ones_like(discount_arr[:1]), discount_arr[1:]])
         discount = torch.cumprod(discount_arr[:-1], 0)
         actor_loss = -torch.mean(discount * returns)
 
