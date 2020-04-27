@@ -258,8 +258,7 @@ class Dreamer(RlAlgorithm):
         discount_arr = self.discount * torch.ones_like(imag_reward)
         returns = self.compute_return(imag_reward[:-1], value[:-1], discount_arr[:-1],
                                       bootstrap=value[-1], lambda_=self.discount_lambda)
-        discount = torch.cumprod(discount_arr[:-1], 1)
-
+        discount = torch.cumprod(discount_arr[:-1], 0)
         actor_loss = -torch.mean(discount * returns)
 
         # ------------------------------------------  Gradient Barrier  ------------------------------------------------
