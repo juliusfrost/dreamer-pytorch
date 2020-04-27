@@ -217,11 +217,18 @@ class Dreamer(RlAlgorithm):
         img_count = np.prod(observation.shape[-3:])
         image_loss = -torch.mean(image_pred.log_prob(observation))
         image_loss = image_loss * img_count
+        if self.use_pcont:
+            pcont_pred = model.pcont(feat)
+            pcont_target = self.discount * sample_discount  # TODO: add sampled discount to the loss
+            pcont_likelihood = torch.mean(pcont_pred.log_prob(pcont_target))
+            pcont_loss = self.pcont_scale * -pcont_likelihood
         prior_dist = get_dist(prior)
         post_dist = get_dist(post)
         div = torch.mean(torch.distributions.kl.kl_divergence(post_dist, prior_dist))
         div = torch.clamp(div, -float('inf'), self.free_nats)
         model_loss = self.kl_scale * div + reward_loss + image_loss
+        if self.use_pcont:
+            model_loss += pcont_loss
 
         # ------------------------------------------  Gradient Barrier  ------------------------------------------------
         # Don't let gradients pass through to prevent overwriting gradients.
@@ -229,7 +236,10 @@ class Dreamer(RlAlgorithm):
 
         # remove gradients from previously calculated tensors
         with torch.no_grad():
-            flat_post = buffer_method(post, 'reshape', batch_size, -1)
+            if self.use_pcont:
+                flat_post = buffer_method(post[:, :-1], 'reshape', batch_size, -1)
+            else:
+                flat_post = buffer_method(post, 'reshape', batch_size, -1)
         # Rollout the policy for self.horizon steps. Variable names with imag_ indicate this data is imagined not real.
         # imag_feat shape is [horizon, batch_t * batch_b, feature_size]
         imag_dist, _ = model.rollout.rollout_policy(self.horizon, model.policy, flat_post)
@@ -246,7 +256,8 @@ class Dreamer(RlAlgorithm):
             value = model.value_model(imag_feat).mean
         # Compute the exponential discounted sum of rewards
         if self.use_pcont:
-            discount_arr = model.pcont(imag_feat).mean
+            with FreezeParameters([model.pcont]):
+                discount_arr = model.pcont(imag_feat).mean
         else:
             discount_arr = self.discount * torch.ones_like(imag_reward)
         returns = self.compute_return(imag_reward[:-1], value[:-1], discount_arr[:-1],
