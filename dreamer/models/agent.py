@@ -117,10 +117,7 @@ class AtariDreamerModel(AgentModel):
         observation = observation.reshape(T * B, *img_shape).type(self.dtype) / 255.0 - 0.5
         prev_action = prev_action.reshape(T * B, -1).to(self.dtype)
         if prev_state is not None:
-            # print("PREV STATE TYPE - forward", type(prev_state))
             prev_state = RSSMState(*prev_state)
-            # print("PREV STATE TYPE - forward2", type(prev_state))
-            # assert False
         if prev_state is None:
             prev_state = self.representation.initial_state(prev_action.size(0), device=prev_action.device,
                                                            dtype=self.dtype)
