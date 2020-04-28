@@ -6,7 +6,7 @@ opencv-python
 numpy
 psutil
 pyprind
-rlpyt
+-e git+https://github.com/astooke/rlpyt.git#egg=rlpyt
 tqdm
 tensorboard
 moviepy
