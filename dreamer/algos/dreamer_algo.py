@@ -54,7 +54,7 @@ class Dreamer(RlAlgorithm):
             free_nats=3,
             kl_scale=1,
             type=torch.float,
-            prefill=5000,
+            prefill=1000,
             log_video=True,
             video_every=int(1e1),
             video_summary_t=25,
@@ -106,6 +106,12 @@ class Dreamer(RlAlgorithm):
                                                 **self.optim_kwargs)
         self.value_optimizer = torch.optim.Adam(get_parameters(self.model_modules), lr=self.value_lr,
                                                 **self.optim_kwargs)
+        import copy
+        self.old_value_p = copy.deepcopy(list(self.agent.model.value_model.parameters()))
+        self.old_actor_p = copy.deepcopy(list(self.agent.model.action_decoder.parameters()))
+        self.old_model_p = []
+        for m in self.model_modules:
+            self.old_model_p += copy.deepcopy(list(m.parameters()))
 
         if self.initial_optim_state_dict is not None:
             self.load_optim_state_dict(self.initial_optim_state_dict)
@@ -145,6 +151,12 @@ class Dreamer(RlAlgorithm):
             buffed_samples = buffer_to(samples_from_replay, self.agent.device)
             model_loss, actor_loss, value_loss, loss_info = self.loss(buffed_samples, itr, i)
 
+
+
+            new_model_p = []
+            for m in self.model_modules:
+                new_model_p += list(m.parameters())
+
             self.model_optimizer.zero_grad()
             model_loss.backward()
             torch.nn.utils.clip_grad_norm_(get_parameters(self.model_modules), self.grad_clip)
@@ -160,6 +172,25 @@ class Dreamer(RlAlgorithm):
             self.model_optimizer.step()
             self.actor_optimizer.step()
             self.value_optimizer.step()
+
+            old_model_p = self.old_model_p
+            old_value_p = self.old_value_p
+            new_value_p = list(self.agent.model.value_model.parameters())
+            old_actor_p = self.old_actor_p
+            new_actor_p = list(self.agent.model.action_decoder.parameters())
+            for p1, p2 in zip(old_value_p, new_value_p):
+                # assert torch.all(torch.eq(p1, p2)), "value didn't match"
+                if not torch.all(torch.eq(p1, p2)):
+                    print("value didn't match")
+            for p1, p2 in zip(old_actor_p, new_actor_p):
+                # assert torch.all(torch.eq(p1, p2)), "actor didn't match"
+                if not torch.all(torch.eq(p1, p2)):
+                    print("actor didn't match")
+            for p1, p2 in zip(old_model_p, new_model_p):
+                # assert torch.all(torch.eq(p1, p2)), "model didn't match"
+                if not torch.all(torch.eq(p1, p2)):
+                    print("model didn't match")
+
 
             loss = model_loss + actor_loss + value_loss
             opt_info.loss.append(loss.item())
