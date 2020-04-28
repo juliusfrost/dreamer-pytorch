@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 from rlpyt.algos.base import RlAlgorithm
+from rlpyt.replays.sequence.n_step import SamplesFromReplay
 from rlpyt.utils.buffer import buffer_to, buffer_method
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.quick_args import save__init__args
@@ -15,7 +16,7 @@ from dreamer.utils.module import get_parameters, FreezeParameters
 torch.autograd.set_detect_anomaly(True)  # used for debugging gradients
 
 loss_info_fields = ['model_loss', 'actor_loss', 'value_loss', 'prior_entropy', 'post_entropy', 'divergence',
-                    'reward_loss', 'image_loss']
+                    'reward_loss', 'image_loss', 'pcont_loss']
 LossInfo = namedarraytuple('LossInfo', loss_info_fields)
 OptInfo = namedarraytuple("OptInfo", ['loss'] + loss_info_fields)
 
@@ -49,8 +50,6 @@ class Dreamer(RlAlgorithm):
             replay_size=int(1e6),
             replay_ratio=8,
             n_step_return=1,
-            prioritized_replay=False,  # not implemented yet
-            ReplayBufferCls=None,  # Leave None to select by above options.
             updates_per_sync=1,  # For async mode only. (not implemented)
             free_nats=3,
             kl_scale=1,
@@ -61,6 +60,7 @@ class Dreamer(RlAlgorithm):
             video_summary_t=25,
             video_summary_b=4,
             use_pcont=False,
+            pcont_scale=10.0,
     ):
         super().__init__()
         if optim_kwargs is None:
@@ -131,6 +131,7 @@ class Dreamer(RlAlgorithm):
     def optimize_agent(self, itr, samples=None, sampler_itr=None):
         itr = itr if sampler_itr is None else sampler_itr
         if samples is not None:
+            # Note: discount not saved here
             self.replay_buffer.append_samples(samples_to_buffer(samples))
 
         opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
@@ -141,12 +142,8 @@ class Dreamer(RlAlgorithm):
         for i in tqdm(range(self.train_steps), desc='Imagination'):
 
             samples_from_replay = self.replay_buffer.sample_batch(self._batch_size, self.batch_length)
-            observation = samples_from_replay.all_observation[:-1]  # [t, t+batch_length+1] -> [t, t+batch_length]
-            action = samples_from_replay.all_action[1:]  # [t-1, t+batch_length] -> [t, t+batch_length]
-            reward = samples_from_replay.all_reward[1:]  # [t-1, t+batch_length] -> [t, t+batch_length]
-            reward = reward.unsqueeze(2)
-            loss_inputs = buffer_to((observation, action, reward), self.agent.device)
-            model_loss, actor_loss, value_loss, loss_info = self.loss(*loss_inputs, itr, i)
+            buffed_samples = buffer_to(samples_from_replay, self.agent.device)
+            model_loss, actor_loss, value_loss, loss_info = self.loss(buffed_samples, itr, i)
 
             self.model_optimizer.zero_grad()
             model_loss.backward()
@@ -172,19 +169,24 @@ class Dreamer(RlAlgorithm):
 
         return opt_info
 
-    def loss(self, observation, action, reward, sample_itr: int, opt_itr: int):
+    def loss(self, samples: SamplesFromReplay, sample_itr: int, opt_itr: int):
         """
         Compute the loss for a batch of data.  This includes computing the model and reward losses on the given data,
         as well as using the dynamics model to generate additional rollouts, which are used for the actor and value
         components of the loss.
-        :param observation: size(batch_t, batch_b, c, h ,w)
-        :param action: size(batch_t, batch_b) if categorical
-        :param reward: size(batch_t, batch_b, 1)
+        :param samples: samples from replay
         :param sample_itr: sample iteration
         :param opt_itr: optimization iteration
         :return: FloatTensor containing the loss
         """
         model = self.agent.model
+
+        observation = samples.all_observation[:-1]  # [t, t+batch_length+1] -> [t, t+batch_length]
+        action = samples.all_action[1:]  # [t-1, t+batch_length] -> [t, t+batch_length]
+        reward = samples.all_reward[1:]  # [t-1, t+batch_length] -> [t, t+batch_length]
+        reward = reward.unsqueeze(2)
+        done = samples.done
+        done = done.unsqueeze(2)
 
         # Extract tensors from the Samples object
         # They all have the batch_t dimension first, but we'll put the batch_b dimension first.
@@ -199,8 +201,6 @@ class Dreamer(RlAlgorithm):
         # embed the image
         embed = model.observation_encoder(observation)
 
-        # if we want to continue the the agent state from the previous time steps, we can do it like so:
-        # prev_state = samples.agent.agent_info.prev_state[0]
         prev_state = model.representation.initial_state(batch_b, device=action.device, dtype=action.dtype)
         # Rollout model by taking the same series of actions as the real model
         post, prior = model.rollout.rollout_representation(batch_t, embed, action, prev_state)
@@ -219,16 +219,15 @@ class Dreamer(RlAlgorithm):
         image_loss = image_loss * img_count
         if self.use_pcont:
             pcont_pred = model.pcont(feat)
-            pcont_target = self.discount * sample_discount  # TODO: add sampled discount to the loss
-            pcont_likelihood = torch.mean(pcont_pred.log_prob(pcont_target))
-            pcont_loss = self.pcont_scale * -pcont_likelihood
+            pcont_target = self.discount * (1 - done.float())
+            pcont_loss = -torch.mean(pcont_pred.log_prob(pcont_target))
         prior_dist = get_dist(prior)
         post_dist = get_dist(post)
         div = torch.mean(torch.distributions.kl.kl_divergence(post_dist, prior_dist))
         div = torch.clamp(div, -float('inf'), self.free_nats)
         model_loss = self.kl_scale * div + reward_loss + image_loss
         if self.use_pcont:
-            model_loss += pcont_loss
+            model_loss += self.pcont_scale * pcont_loss
 
         # ------------------------------------------  Gradient Barrier  ------------------------------------------------
         # Don't let gradients pass through to prevent overwriting gradients.
@@ -237,7 +236,8 @@ class Dreamer(RlAlgorithm):
         # remove gradients from previously calculated tensors
         with torch.no_grad():
             if self.use_pcont:
-                flat_post = buffer_method(post[:, :-1], 'reshape', batch_size, -1)
+                # "Last step could be terminal." Done in TF2 code, but unclear why
+                flat_post = buffer_method(post[:-1, :], 'reshape', (batch_t - 1) * (batch_b), -1)
             else:
                 flat_post = buffer_method(post, 'reshape', batch_size, -1)
         # Rollout the policy for self.horizon steps. Variable names with imag_ indicate this data is imagined not real.
@@ -285,7 +285,8 @@ class Dreamer(RlAlgorithm):
         with torch.no_grad():
             prior_ent = torch.mean(prior_dist.entropy())
             post_ent = torch.mean(post_dist.entropy())
-            loss_info = LossInfo(model_loss, actor_loss, value_loss, prior_ent, post_ent, div, reward_loss, image_loss)
+            loss_info = LossInfo(model_loss, actor_loss, value_loss, prior_ent, post_ent, div, reward_loss, image_loss,
+                                 pcont_loss)
 
             if self.log_video:
                 if opt_itr == self.train_steps - 1 and sample_itr % self.video_every == 0:

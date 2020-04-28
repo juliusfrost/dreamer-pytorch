@@ -14,11 +14,13 @@ class TimeLimit(EnvWrapper):
         obs, reward, done, info = self.env.step(action)
         self._step += 1
         if self._step >= self._duration:
-            done = True
+            # done = True
             # if 'discount' not in info:
             #     info['discount'] = np.array(1.0).astype(np.float32)
             if isinstance(info, EnvInfo):
-                info = EnvInfo(info.discount, info.game_score, done)
+                # The last attribute in EnvInfo indicates termination of the trajectory
+                # we do not set done = True because it should only be controlled by the environment
+                info = EnvInfo(info.discount, info.game_score, True)
             self._step = None
         return EnvStep(obs, reward, done, info)
 
