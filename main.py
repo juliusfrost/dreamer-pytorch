@@ -45,9 +45,10 @@ def build_and_train(log_dir, game="pong", run_ID=0, cuda_idx=None, eval=False, s
         eval_max_steps=int(10e3),
         eval_max_trajectories=5,
     )
-    algo = Dreamer(horizon=10, kl_scale=0.1, initial_optim_state_dict=optimizer_state_dict)
+    algo = Dreamer(horizon=10, kl_scale=0.1, use_pcont=True, initial_optim_state_dict=optimizer_state_dict)
     agent = AtariDreamerAgent(train_noise=0.4, eval_noise=0, expl_type="epsilon_greedy",
-                              expl_min=0.1, expl_decay=2000 / 0.3, initial_model_state_dict=agent_state_dict)
+                              expl_min=0.1, expl_decay=2000 / 0.3, initial_model_state_dict=agent_state_dict,
+                              model_kwargs=dict(use_pcont=True))
     runner_cls = MinibatchRlEval if eval else MinibatchRl
     runner = runner_cls(
         algo=algo,

@@ -44,9 +44,12 @@ def build_and_train(game="pong", run_ID=0, cuda_idx=None, eval=False):
         horizon=5,
         replay_size=100,
         log_video=False,
-        kl_scale=0.1)
+        kl_scale=0.1,
+        use_pcont=True,
+    )
     agent = AtariDreamerAgent(
-        train_noise=0.4, eval_noise=0, expl_type="epsilon_greedy", expl_min=0.1, expl_decay=2000/0.3)
+        train_noise=0.4, eval_noise=0, expl_type="epsilon_greedy", expl_min=0.1, expl_decay=2000 / 0.3,
+        model_kwargs=dict(use_pcont=True))
     runner_cls = MinibatchRlEval if eval else MinibatchRl
     runner = runner_cls(
         algo=algo,
