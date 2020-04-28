@@ -54,7 +54,7 @@ class Dreamer(RlAlgorithm):
             free_nats=3,
             kl_scale=1,
             type=torch.float,
-            prefill=5000,
+            prefill=1000,
             log_video=True,
             video_every=int(1e1),
             video_summary_t=25,
@@ -88,7 +88,7 @@ class Dreamer(RlAlgorithm):
 
     def optim_initialize(self, rank=0):
         self.rank = rank
-        model = self.agent.model
+        model = self.get_model()
         model_parameters = \
             list(model.observation_encoder.parameters()) + \
             list(model.observation_decoder.parameters()) + \
@@ -121,12 +121,19 @@ class Dreamer(RlAlgorithm):
         self.actor_optimizer.load_state_dict(state_dict['actor_optimizer_dict'])
         self.value_optimizer.load_state_dict(state_dict['value_optimizer_dict'])
 
+    def get_model(self):
+        model = self.agent.model
+        if hasattr(model, 'module'):
+            model = model.module
+        return model
+
     def optimize_agent(self, itr, samples=None, sampler_itr=None):
         itr = itr if sampler_itr is None else sampler_itr
         if samples is not None:
             self.replay_buffer.append_samples(samples_to_buffer(samples))
 
         opt_info = OptInfo(*([] for _ in range(len(OptInfo._fields))))
+        # return opt_info
         if itr < self.prefill:
             return opt_info
         if itr % self.train_every != 0:
@@ -141,7 +148,7 @@ class Dreamer(RlAlgorithm):
             loss_inputs = buffer_to((observation, action, reward), self.agent.device)
             model_loss, actor_loss, value_loss, loss_info = self.loss(*loss_inputs, itr, i)
 
-            model = self.agent.model
+            model = self.get_model()
 
             self.actor_optimizer.zero_grad()
             actor_loss.backward()
@@ -184,7 +191,7 @@ class Dreamer(RlAlgorithm):
         :param opt_itr: optimization iteration
         :return: FloatTensor containing the loss
         """
-        model = self.agent.model
+        model = self.get_model()
 
         # Extract tensors from the Samples object
         # They all have the batch_t dimension first, but we'll put the batch_b dimension first.
@@ -299,7 +306,7 @@ class Dreamer(RlAlgorithm):
         Outputs 3 different frames to video: ground truth, reconstruction, error
         """
         lead_dim, batch_t, batch_b, img_shape = infer_leading_dims(observation, 3)
-        model = self.agent.model
+        model = self.get_model()
         ground_truth = observation[:, :n] + 0.5
         reconstruction = image_pred.mean[:t, :n]
 

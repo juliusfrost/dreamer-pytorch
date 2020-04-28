@@ -42,6 +42,8 @@ class DreamerAgent(RecurrentAgentMixin, BaseAgent):
         (no grad)
         """
         model_inputs = buffer_to((observation, prev_action), device=self.device)
+        # if self.prev_rnn_state is not None:
+            # print("PREV STATE TYPE", type(self.prev_rnn_state))
         action, state = self.model(*model_inputs, self.prev_rnn_state)
         action = self.exploration(action)
         # Model handles None, but Buffer does not, make zeros if needed:
