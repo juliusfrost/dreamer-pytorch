@@ -315,7 +315,7 @@ class Dreamer(RlAlgorithm):
         # concatenate vertically on height dimension
         openl = torch.cat((ground_truth, model, error), dim=3)
         openl = openl.transpose(1, 0)  # N,T,C,H,W
-        video_summary('videos/model_error', openl, step)
+        video_summary('videos/model_error', torch.clamp(openl, 0., 1.), step)
 
     def compute_return(self,
                        reward: torch.Tensor,
