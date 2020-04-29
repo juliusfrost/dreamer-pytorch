@@ -189,17 +189,15 @@ class RSSMRollout(RollOutModule):
         :return: next states size(time_steps, batch_size, state_size),
                  actions size(time_steps, batch_size, action_size)
         """
-        # freeze state transition model parameters as only action model gradients needed
-        with FreezeParameters([self.transition_model]):
-            state = prev_state
-            next_states = []
-            actions = []
-            state = buffer_method(state, 'detach')
-            for t in range(steps):
-                action, _ = policy(buffer_method(state, 'detach'))
-                state = self.transition_model(action, state)
-                next_states.append(state)
-                actions.append(action)
-            next_states = stack_states(next_states, dim=0)
-            actions = torch.stack(actions, dim=0)
+        state = prev_state
+        next_states = []
+        actions = []
+        state = buffer_method(state, 'detach')
+        for t in range(steps):
+            action, _ = policy(buffer_method(state, 'detach'))
+            state = self.transition_model(action, state)
+            next_states.append(state)
+            actions.append(action)
+        next_states = stack_states(next_states, dim=0)
+        actions = torch.stack(actions, dim=0)
         return next_states, actions
