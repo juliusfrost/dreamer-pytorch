@@ -15,12 +15,11 @@ import numpy as np
 from gym import spaces
 from gym.wrappers import Monitor
 from gym.wrappers.monitoring.stats_recorder import StatsRecorder
-import minerl
 from rlpyt.envs.base import Env, EnvStep
 from rlpyt.spaces.float_box import FloatBox
 from rlpyt.spaces.int_box import IntBox
 
-from dreamer.envs.env import EnvInfo
+from envs.env import EnvInfo
 
 cv2.ocl.setUseOpenCL(False)
 logger = getLogger(__name__)

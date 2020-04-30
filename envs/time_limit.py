@@ -1,6 +1,7 @@
 from rlpyt.envs.base import EnvStep
-from dreamer.envs.wrapper import EnvWrapper
-from dreamer.envs.env import EnvInfo
+
+from envs.env import EnvInfo
+from envs.wrapper import EnvWrapper
 
 
 class TimeLimit(EnvWrapper):

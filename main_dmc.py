@@ -10,11 +10,11 @@ from rlpyt.utils.logging.context import logger_context
 
 from dreamer.agents.continuous import ContinuousDreamerAgent
 from dreamer.algos.dreamer_algo import Dreamer
-from dreamer.envs.dmc import DeepMindControl
-from dreamer.envs.time_limit import TimeLimit
-from dreamer.envs.action_repeat import ActionRepeat
-from dreamer.envs.normalize_actions import NormalizeActions
-from dreamer.envs.wrapper import make_wapper
+from envs.dmc import DeepMindControl
+from envs.time_limit import TimeLimit
+from envs.action_repeat import ActionRepeat
+from envs.normalize_actions import NormalizeActions
+from envs.wrapper import make_wapper
 
 
 def build_and_train(log_dir, game="cartpole_balance", run_ID=0, cuda_idx=None, eval=False, save_model='last', load_model_path=None):

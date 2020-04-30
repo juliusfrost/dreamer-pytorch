@@ -1,4 +1,4 @@
-from dreamer.envs.wrapper import EnvWrapper
+from envs.wrapper import EnvWrapper
 
 
 class ActionRepeat(EnvWrapper):

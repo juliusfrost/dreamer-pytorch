@@ -9,10 +9,10 @@ from rlpyt.utils.logging.context import logger_context
 
 from dreamer.agents.discrete import DiscreteDreamerAgent
 from dreamer.algos.dreamer_algo import Dreamer
-from dreamer.envs.atari import AtariEnv, AtariTrajInfo
-from dreamer.envs.wrapper import make_wapper
-from dreamer.envs.one_hot import OneHotAction
-from dreamer.envs.time_limit import TimeLimit
+from envs.atari import AtariEnv, AtariTrajInfo
+from envs.wrapper import make_wapper
+from envs.one_hot import OneHotAction
+from envs.time_limit import TimeLimit
 
 
 def build_and_train(log_dir, game="pong", run_ID=0, cuda_idx=None, eval=False, save_model='last', load_model_path=None):

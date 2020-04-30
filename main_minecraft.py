@@ -12,9 +12,9 @@ from rlpyt.utils.logging.context import logger_context
 
 from dreamer.agents.discrete import DiscreteDreamerAgent
 from dreamer.algos.dreamer_algo import Dreamer
-from dreamer.envs.minecraft import wrap_env, ENVIRONMENTS
-from dreamer.envs.one_hot import OneHotAction
-from dreamer.envs.wrapper import make_wapper
+from envs.minecraft import wrap_env, ENVIRONMENTS
+from envs.one_hot import OneHotAction
+from envs.wrapper import make_wapper
 
 
 def build_and_train(log_dir, name="MineRLTreechop-v0", run_ID=0, cuda_idx=None, eval=False, save_model='last',

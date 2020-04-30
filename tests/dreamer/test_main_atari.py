@@ -3,10 +3,10 @@ from rlpyt.samplers.serial.sampler import SerialSampler
 
 from dreamer.agents.discrete import DiscreteDreamerAgent
 from dreamer.algos.dreamer_algo import Dreamer
-from dreamer.envs.atari import AtariEnv, AtariTrajInfo
-from dreamer.envs.one_hot import OneHotAction
-from dreamer.envs.time_limit import TimeLimit
-from dreamer.envs.wrapper import make_wapper
+from envs.atari import AtariEnv, AtariTrajInfo
+from envs.one_hot import OneHotAction
+from envs.time_limit import TimeLimit
+from envs.wrapper import make_wapper
 
 
 def build_and_train(game="pong", run_ID=0, cuda_idx=None, eval=False):

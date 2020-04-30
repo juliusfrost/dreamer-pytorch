@@ -100,17 +100,6 @@ pytest tests --cov=dreamer
   - `algos` algorithm specific code
     - `dreamer_algo.py` optimization algorithm, loss functions, hyperparameters
     - `replay.py` replay buffer
-  - `envs` environment specific code
-    - `action_repeat.py` action repeat wrapper. ported from tf2 dreamer
-    - `atari.py` Atari environments. ported from tf2 dreamer
-    - `dmc.py` DeepMind Control Suite environment. ported from tf2 dreamer
-    - `env.py` base classes for environment
-    - `minecraft.py` Minecraft environment using the minerl package. ported from [minerl baselines](https://github.com/minerllabs/baselines)
-    - `modified_atari.py` unused atari environment from rlpyt
-    - `normalize_actions.py` normalize actions wrapper. ported from tf2 dreamer
-    - `one_hot.py` one hot action wrapper. ported from tf2 dreamer
-    - `time_limit.py` Time limit wrapper. ported from tf2 dreamer
-    - `wrapper.py` Base environment wrapper class
   - `experiments` currently not used
   - `models` all models used in the agent
     - `action.py` Action model
@@ -122,6 +111,17 @@ pytest tests --cov=dreamer
   - `utils` utility functions
     - `logging.py` logging videos
     - `module.py`  freezing parameters
+- `envs` environment specific code
+  - `action_repeat.py` action repeat wrapper. ported from tf2 dreamer
+  - `atari.py` Atari environments. ported from tf2 dreamer
+  - `dmc.py` DeepMind Control Suite environment. ported from tf2 dreamer
+  - `env.py` base classes for environment
+  - `minecraft.py` Minecraft environment using the minerl package. ported from [minerl baselines](https://github.com/minerllabs/baselines)
+  - `modified_atari.py` unused atari environment from rlpyt
+  - `normalize_actions.py` normalize actions wrapper. ported from tf2 dreamer
+  - `one_hot.py` one hot action wrapper. ported from tf2 dreamer
+  - `time_limit.py` Time limit wrapper. ported from tf2 dreamer
+  - `wrapper.py` Base environment wrapper class
 
 
 ### Contributing

@@ -1,9 +1,7 @@
-import gym
 import numpy as np
-
-from dreamer.envs.wrapper import EnvWrapper
-from rlpyt.spaces.int_box import IntBox
 from rlpyt.spaces.float_box import FloatBox
+
+from envs.wrapper import EnvWrapper
 
 
 class OneHotAction(EnvWrapper):

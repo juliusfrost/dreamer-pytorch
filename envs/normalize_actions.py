@@ -1,7 +1,8 @@
 import numpy as np
-import gym
-from dreamer.envs.wrapper import EnvWrapper
 from rlpyt.spaces.float_box import FloatBox
+
+from envs.wrapper import EnvWrapper
+
 
 class NormalizeActions(EnvWrapper):
 

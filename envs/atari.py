@@ -6,7 +6,7 @@ from rlpyt.envs.atari.atari_env import AtariTrajInfo
 from rlpyt.envs.base import Env, EnvStep
 from rlpyt.spaces.int_box import IntBox
 
-from dreamer.envs.env import EnvInfo
+from envs.env import EnvInfo
 
 AtariTrajInfo = AtariTrajInfo
 
