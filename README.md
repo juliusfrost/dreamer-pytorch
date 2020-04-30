@@ -52,6 +52,14 @@ pip install mujoco_py
 pip install dm_control
 ```
 
+#### Minecraft with [minerl](https://github.com/minerllabs/minerl)
+Follow instructions in the [docs](http://minerl.io/docs/).
+Install java jdk 8. ([be careful which version](https://github.com/minerllabs/minerl/issues/292)).
+Cannot run headless, must have a display open.
+```bash
+pip install minerl
+```
+
 You must have a [mujoco license](https://www.roboti.us/license.html)
 
 ## Running Experiments
@@ -81,12 +89,13 @@ pytest tests --cov=dreamer
 ```
 
 ### Code structure
-- `main.py` run atari experiment
+- `main_atari.py` run atari experiment
 - `main_dmc.py` run deepmind control experiment 
+- `main_minecraft.py` run minecraft experiment using minerl environment
 - `dreamer` dreamer code
   - `agents` agent code used in sampling
-    - `atari_dreamer_agent.py` Atari agent
-    - `dmc_dreamer_agent.py` DeepMind Control agent
+    - `continuous.py` Continuous agent parameters
+    - `discrete.py` Discrete agent parameters
     - `dreamer_agent.py` basic sampling agent, exploration, contains shared methods
   - `algos` algorithm specific code
     - `dreamer_algo.py` optimization algorithm, loss functions, hyperparameters
@@ -96,6 +105,7 @@ pytest tests --cov=dreamer
     - `atari.py` Atari environments. ported from tf2 dreamer
     - `dmc.py` DeepMind Control Suite environment. ported from tf2 dreamer
     - `env.py` base classes for environment
+    - `minecraft.py` Minecraft environment using the minerl package. ported from [minerl baselines](https://github.com/minerllabs/baselines)
     - `modified_atari.py` unused atari environment from rlpyt
     - `normalize_actions.py` normalize actions wrapper. ported from tf2 dreamer
     - `one_hot.py` one hot action wrapper. ported from tf2 dreamer

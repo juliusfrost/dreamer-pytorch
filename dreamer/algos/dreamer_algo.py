@@ -198,7 +198,7 @@ class Dreamer(RlAlgorithm):
         batch_size = batch_t * batch_b
 
         # normalize image
-        observation = observation.type(self.type) / 255.0 - 0.5
+        observation = model.normalize(observation.type(self.type))
         # embed the image
         embed = model.observation_encoder(observation)
 

@@ -32,9 +32,13 @@ class AgentModel(nn.Module):
             use_pcont=False,
             pcont_layers=3,
             pcont_hidden=200,
+            obs_low=0,  # this should be set by the environment
+            obs_high=1,  # this should be set by the environment
             **kwargs,
     ):
         super().__init__()
+        self.obs_low=obs_low
+        self.obs_high=obs_high
         self.observation_encoder = ObservationEncoder(shape=image_shape)
         encoder_embed_size = self.observation_encoder.embed_size
         decoder_embed_size = stochastic_size + deterministic_size
@@ -63,6 +67,12 @@ class AgentModel(nn.Module):
         value = self.value_model(get_feat(state))
         reward = self.reward_model(get_feat(state))
         return action, action_dist, value, reward, state
+
+    def normalize(self, obs):
+        return (obs - self.obs_low) / self.obs_high - 0.5
+
+    def denormalize(self, obs):
+        return torch.clamp((obs + 0.5) * self.obs_high + self.obs_low, self.obs_low, self.obs_high)
 
     def policy(self, state: RSSMState):
         feat = get_feat(state)
@@ -112,14 +122,9 @@ class AgentModel(nn.Module):
         return state
 
     def forward(self, observation: torch.Tensor, prev_action: torch.Tensor = None, prev_state: RSSMState = None):
-        return_spec = ModelReturnSpec(None, None)
-        raise NotImplementedError()
-
-
-class AtariDreamerModel(AgentModel):
-    def forward(self, observation: torch.Tensor, prev_action: torch.Tensor = None, prev_state: RSSMState = None):
         lead_dim, T, B, img_shape = infer_leading_dims(observation, 3)
-        observation = observation.reshape(T * B, *img_shape).type(self.dtype) / 255.0 - 0.5
+        observation = observation.reshape(T * B, *img_shape).type(self.dtype)
+        observation = self.normalize(observation)
         prev_action = prev_action.reshape(T * B, -1).to(self.dtype)
         if prev_state is None:
             prev_state = self.representation.initial_state(prev_action.size(0), device=prev_action.device,

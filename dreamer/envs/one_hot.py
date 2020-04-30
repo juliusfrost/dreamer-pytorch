@@ -9,9 +9,11 @@ from rlpyt.spaces.float_box import FloatBox
 class OneHotAction(EnvWrapper):
 
     def __init__(self, env):
-        assert isinstance(env.action_space, gym.spaces.Discrete) or isinstance(env.action_space, IntBox)
+        # assert isinstance(env.action_space, gym.spaces.Discrete) or isinstance(env.action_space, IntBox)
         super().__init__(env)
         self._dtype = np.float32
+        if not hasattr(self, 'random'):
+            self.random = np.random.RandomState(0)
 
     @property
     def action_space(self):

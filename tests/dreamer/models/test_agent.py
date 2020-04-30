@@ -24,10 +24,10 @@ def test_agent(dist):
     assert action.shape == (batch_size, *action_shape)
 
     agent_model.eval()
-    try:
-        _ = agent_model(observation, prev_action, prev_state)
-    except NotImplementedError:
-        pass
+    prev_action = torch.randn(batch_size, *action_shape)
+    action, state = agent_model(observation, prev_action, prev_state)
+    assert action.shape == (batch_size, *action_shape)
+    assert state.deter.shape == (batch_size, deterministic_size)
 
     next_state = agent_model.get_state_transition(action, state)
     assert next_state.deter.shape == (batch_size, deterministic_size)

@@ -1,7 +1,7 @@
 from rlpyt.runners.minibatch_rl import MinibatchRlEval, MinibatchRl
 from rlpyt.samplers.serial.sampler import SerialSampler
 
-from dreamer.agents.atari_dreamer_agent import AtariDreamerAgent
+from dreamer.agents.discrete import DiscreteDreamerAgent
 from dreamer.algos.dreamer_algo import Dreamer
 from dreamer.envs.atari import AtariEnv, AtariTrajInfo
 from dreamer.envs.one_hot import OneHotAction
@@ -47,7 +47,7 @@ def build_and_train(game="pong", run_ID=0, cuda_idx=None, eval=False):
         kl_scale=0.1,
         use_pcont=True,
     )
-    agent = AtariDreamerAgent(
+    agent = DiscreteDreamerAgent(
         train_noise=0.4, eval_noise=0, expl_type="epsilon_greedy", expl_min=0.1, expl_decay=2000 / 0.3,
         model_kwargs=dict(use_pcont=True))
     runner_cls = MinibatchRlEval if eval else MinibatchRl

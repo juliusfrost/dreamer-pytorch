@@ -13,7 +13,7 @@ from rlpyt.utils.logging.context import logger_context
 
 from dreamer.experiments.configs.atari.atari_dreamer import configs
 from dreamer.algos.dreamer_algo import Dreamer
-from dreamer.agents.atari_dreamer_agent import AtariDreamerAgent
+from dreamer.agents.discrete import DiscreteDreamerAgent
 
 
 def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
@@ -30,7 +30,7 @@ def build_and_train(slot_affinity_code, log_dir, run_ID, config_key):
         **config["sampler"]
     )
     algo = Dreamer(optim_kwargs=config["optim"], **config["algo"])
-    agent = AtariDreamerAgent(model_kwargs=config["model"], **config["agent"])
+    agent = DiscreteDreamerAgent(model_kwargs=config["model"], **config["agent"])
     runner = MinibatchRl(
         algo=algo,
         agent=agent,
