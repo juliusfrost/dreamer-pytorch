@@ -145,20 +145,21 @@ class Dreamer(RlAlgorithm):
             buffed_samples = buffer_to(samples_from_replay, self.agent.device)
             model_loss, actor_loss, value_loss, loss_info = self.loss(buffed_samples, itr, i)
 
-            self.actor_optimizer.zero_grad()
-            actor_loss.backward()
-            torch.nn.utils.clip_grad_norm_(get_parameters(self.actor_modules), self.grad_clip)
-            self.actor_optimizer.step()
-
-            self.value_optimizer.zero_grad()
-            value_loss.backward()
-            torch.nn.utils.clip_grad_norm_(get_parameters(self.value_modules), self.grad_clip)
-            self.value_optimizer.step()
-
             self.model_optimizer.zero_grad()
+            self.actor_optimizer.zero_grad()
+            self.value_optimizer.zero_grad()
+
             model_loss.backward()
+            actor_loss.backward()
+            value_loss.backward()
+
             torch.nn.utils.clip_grad_norm_(get_parameters(self.model_modules), self.grad_clip)
+            torch.nn.utils.clip_grad_norm_(get_parameters(self.actor_modules), self.grad_clip)
+            torch.nn.utils.clip_grad_norm_(get_parameters(self.value_modules), self.grad_clip)
+
             self.model_optimizer.step()
+            self.actor_optimizer.step()
+            self.value_optimizer.step()
 
             with torch.no_grad():
                 loss = model_loss + actor_loss + value_loss
