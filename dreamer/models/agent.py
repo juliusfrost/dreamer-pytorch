@@ -37,8 +37,8 @@ class AgentModel(nn.Module):
             **kwargs,
     ):
         super().__init__()
-        self.obs_low=obs_low
-        self.obs_high=obs_high
+        self.obs_low = torch.tensor(obs_low)
+        self.obs_high = torch.tensor(obs_high)
         self.observation_encoder = ObservationEncoder(shape=image_shape)
         encoder_embed_size = self.observation_encoder.embed_size
         decoder_embed_size = stochastic_size + deterministic_size
@@ -69,10 +69,13 @@ class AgentModel(nn.Module):
         return action, action_dist, value, reward, state
 
     def normalize(self, obs):
-        return (obs - self.obs_low) / self.obs_high - 0.5
+        return (obs - self.obs_low.to(obs.device)) / self.obs_high.to(obs.device) - 0.5
 
     def denormalize(self, obs):
-        return torch.clamp((obs + 0.5) * self.obs_high + self.obs_low, self.obs_low, self.obs_high)
+        obs_high = self.obs_high.to(obs.device)
+        obs_low = self.obs_low.to(obs.device)
+        obs = (obs + 0.5) * obs_high + obs_low
+        return torch.clamp(obs, torch.min(obs_low).item(), torch.max(obs_high).item())
 
     def policy(self, state: RSSMState):
         feat = get_feat(state)

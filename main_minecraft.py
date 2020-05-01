@@ -4,6 +4,7 @@ import os
 
 import gym
 import torch
+import minerl
 from rlpyt.envs.gym import GymEnvWrapper
 from rlpyt.runners.minibatch_rl import MinibatchRlEval, MinibatchRl
 from rlpyt.samplers.collections import TrajInfo
