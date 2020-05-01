@@ -315,6 +315,9 @@ class Dreamer(RlAlgorithm):
         prior = model.rollout.rollout_transition(batch_t - t, action[t:, :n], prev_state)
         imagined = model.observation_decoder(get_feat(prior)).mean
         model = torch.cat((reconstruction, imagined), dim=0) + 0.5
+        if ground_truth.size(2) > 3:
+            ground_truth = ground_truth[:, :, :3]
+            model = model[:, :, :3]
         error = (model - ground_truth + 1) / 2
         # concatenate vertically on height dimension
         openl = torch.cat((ground_truth, model, error), dim=3)
