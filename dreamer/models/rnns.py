@@ -5,6 +5,8 @@ import torch.nn.functional as tf
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.buffer import buffer_method
 
+from dreamer.utils.module import FreezeParameters
+
 RSSMState = namedarraytuple('RSSMState', ['mean', 'std', 'stoch', 'deter'])
 
 
@@ -190,11 +192,6 @@ class RSSMRollout(RollOutModule):
         state = prev_state
         next_states = []
         actions = []
-
-        # freeze state transition model parameters as only action model gradients needed
-        for p in self.transition_model.parameters():
-            p.requires_grad = False
-
         state = buffer_method(state, 'detach')
         for t in range(steps):
             action, _ = policy(buffer_method(state, 'detach'))
@@ -203,7 +200,4 @@ class RSSMRollout(RollOutModule):
             actions.append(action)
         next_states = stack_states(next_states, dim=0)
         actions = torch.stack(actions, dim=0)
-
-        for p in self.transition_model.parameters():
-            p.requires_grad = True
         return next_states, actions

@@ -47,9 +47,11 @@ def build_and_train(log_dir, game="pong", run_ID=0, num_gpus=1, eval=False, save
         eval_max_steps=int(10e3),
         eval_max_trajectories=5,
     )
-    algo = Dreamer(horizon=10, kl_scale=0.1, initial_optim_state_dict=optimizer_state_dict)
+    algo = Dreamer(horizon=10, kl_scale=0.1, use_pcont=True, initial_optim_state_dict=optimizer_state_dict)
     agent = AtariDreamerAgent(train_noise=0.4, eval_noise=0, expl_type="epsilon_greedy",
-                              expl_min=0.1, expl_decay=2000 / 0.3, initial_model_state_dict=agent_state_dict)
+                              expl_min=0.1, expl_decay=2000 / 0.3, initial_model_state_dict=agent_state_dict,
+                              model_kwargs=dict(use_pcont=True))
+
     runner_cls = SyncRlEval if eval else SyncRl
     affinity = make_affinity(  # TODO: are any of the other args we can pass in here important?
         n_cpu_core=6,  # Use 6 cores across all experiments.
@@ -59,6 +61,7 @@ def build_and_train(log_dir, game="pong", run_ID=0, num_gpus=1, eval=False, save
     )
     if not isinstance(affinity, list):
         affinity = [affinity]
+
     runner = runner_cls(
         algo=algo,
         agent=agent,
