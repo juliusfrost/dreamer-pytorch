@@ -4,9 +4,11 @@ import argparse
 import torch
 
 from rlpyt.samplers.collections import TrajInfo
+from rlpyt.runners.sync_rl import SyncRl, SyncRlEval
 from rlpyt.runners.minibatch_rl import MinibatchRlEval, MinibatchRl
 from rlpyt.samplers.serial.sampler import SerialSampler
 from rlpyt.utils.logging.context import logger_context
+from rlpyt.utils.launching.affinity import make_affinity
 
 from dreamer.agents.dmc_dreamer_agent import DMCDreamerAgent
 from dreamer.algos.dreamer_algo import Dreamer
@@ -17,7 +19,8 @@ from dreamer.envs.normalize_actions import NormalizeActions
 from dreamer.envs.wrapper import make_wapper
 
 
-def build_and_train(log_dir, game="cartpole_balance", run_ID=0, cuda_idx=None, eval=False, save_model='last', load_model_path=None):
+def build_and_train(log_dir, game="cartpole_balance", run_ID=0, num_gpus=None, num_cpus=6,
+                    eval=False, save_model='last', load_model_path=None):
     params = torch.load(load_model_path) if load_model_path else {}
     agent_state_dict = params.get('agent_state_dict')
     optimizer_state_dict = params.get('optimizer_state_dict')
@@ -42,14 +45,26 @@ def build_and_train(log_dir, game="cartpole_balance", run_ID=0, cuda_idx=None, e
     algo = Dreamer(initial_optim_state_dict=optimizer_state_dict)  # Run with defaults.
     agent = DMCDreamerAgent(train_noise=0.3, eval_noise=0, expl_type="additive_gaussian",
                               expl_min=None, expl_decay=None, initial_model_state_dict=agent_state_dict)
-    runner_cls = MinibatchRlEval if eval else MinibatchRl
+    runner_cls = SyncRlEval if eval else SyncRl
+    if num_gpus is None:
+        num_gpus = torch.cuda.device_count()
+        print("Using %i GPUs" % num_gpus)
+    affinity = make_affinity(  # TODO: are any of the other args we can pass in here important?
+        n_cpu_core=args.num_cpus,  # Use 6 cores across all experiments.
+        n_gpu=num_gpus,  # Use num_gpu gpus across all experiments.
+        gpu_per_run=num_gpus,  # How many GPUs to parallelize one run across.
+        # async_sample=True,  # True if asynchronous sampling / optimization.
+        # sample_gpu_per_run=1,
+    )
+    if not isinstance(affinity, list):
+        affinity = [affinity]
     runner = runner_cls(
         algo=algo,
         agent=agent,
         sampler=sampler,
         n_steps=5e6,
         log_interval_steps=1e3,
-        affinity=dict(cuda_idx=cuda_idx),
+        affinity=affinity,
     )
     config = dict(game=game)
     name = "dreamer_" + game
@@ -62,7 +77,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--game', help='DMC game', default='cartpole_balance')
     parser.add_argument('--run-ID', help='run identifier (logging)', type=int, default=0)
-    parser.add_argument('--cuda-idx', help='gpu to use ', type=int, default=None)
+    parser.add_argument('--num-gpus', help='number of gpu to use; specify which ones using CUDA_VISIBLE_DEVICES=...', type=int, default=None)
+    parser.add_argument('--num-cpus', help='number of cpu cores to use', type=int, default=6)
     parser.add_argument('--eval', action='store_true')
     parser.add_argument('--save-model', help='save model', type=str, default='last',
                         choices=['all', 'none', 'gap', 'last'])
@@ -85,7 +101,8 @@ if __name__ == "__main__":
         log_dir,
         game=args.game,
         run_ID=args.run_ID,
-        cuda_idx=args.cuda_idx,
+        num_gpus=args.num_gpus,
+        num_cpus=args.num_cpus,
         eval=args.eval,
         save_model=args.save_model,
         load_model_path=args.load_model_path,
