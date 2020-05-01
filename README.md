@@ -1,3 +1,4 @@
+# Counterfactual Policies -- coming soon
 # Dreamer PyTorch
 
 [![tests](https://github.com/juliusfrost/dreamer-pytorch/workflows/tests/badge.svg)](https://github.com/juliusfrost/dreamer-pytorch/actions)
@@ -80,12 +81,42 @@ If you want additional code coverage information:
 pytest tests --cov=dreamer
 ```
 
-### Styling
-
-Use PEP8 style for python syntax. (ctrl-alt-l in PyCharm)  
+### Code structure
+- `main.py` run atari experiment
+- `main_dmc.py` run deepmind control experiment 
+- `dreamer` dreamer code
+  - `agents` agent code used in sampling
+    - `atari_dreamer_agent.py` Atari agent
+    - `dmc_dreamer_agent.py` DeepMind Control agent
+    - `dreamer_agent.py` basic sampling agent, exploration, contains shared methods
+  - `algos` algorithm specific code
+    - `dreamer_algo.py` optimization algorithm, loss functions, hyperparameters
+    - `replay.py` replay buffer
+  - `envs` environment specific code
+    - `action_repeat.py` action repeat wrapper. ported from tf2 dreamer
+    - `atari.py` Atari environments. ported from tf2 dreamer
+    - `dmc.py` DeepMind Control Suite environment. ported from tf2 dreamer
+    - `env.py` base classes for environment
+    - `modified_atari.py` unused atari environment from rlpyt
+    - `normalize_actions.py` normalize actions wrapper. ported from tf2 dreamer
+    - `one_hot.py` one hot action wrapper. ported from tf2 dreamer
+    - `time_limit.py` Time limit wrapper. ported from tf2 dreamer
+    - `wrapper.py` Base environment wrapper class
+  - `experiments` currently not used
+  - `models` all models used in the agent
+    - `action.py` Action model
+    - `agent.py` Summarizes all models for agent module
+    - `dense.py` Dense fully connected models. Used for Reward Model, Value Model, Discount Model.
+    - `distribution.py` Distributions, TanH Bijector
+    - `observation.py` Observation Model
+    - `rnns.py` Recurrent State Space Model
+  - `utils` utility functions
+    - `logging.py` logging videos
+    - `module.py`  freezing parameters
 
 
 ### Contributing
+Read `CONTRIBUTING.md`.
 Contact juliusf@bu.edu or send in a pull request.
 Join our [slack link](https://join.slack.com/t/dreamer-pytorch/shared_invite/zt-dobz7kf6-_tpAv1H9qkk8Ukov1Uy9qQ)
 (valid until 5/19/2020)

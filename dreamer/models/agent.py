@@ -30,6 +30,9 @@ class AgentModel(nn.Module):
             value_hidden=200,
             dtype=torch.float,
             state_size=None,
+            use_pcont=False,
+            pcont_layers=3,
+            pcont_hidden=200,
             **kwargs,
     ):
         super().__init__()
@@ -56,6 +59,8 @@ class AgentModel(nn.Module):
         self.deterministic_size = deterministic_size
         self.use_state = state_size is not None
         self.state_size = state_size
+        if use_pcont:
+            self.pcont = DenseModel(feature_size, (1,), pcont_layers, pcont_hidden, dist='binary')
 
     def forward(self, observation: torch.Tensor, prev_action: torch.Tensor = None, prev_state: RSSMState = None):
         state = self.get_state_representation(observation, prev_action, prev_state)
