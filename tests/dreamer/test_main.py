@@ -39,7 +39,7 @@ def build_and_train(game="pong", run_ID=0, cuda_idx=None, eval=False):
         batch_size=1,
         batch_length=5,
         train_every=10,
-        train_steps=1,
+        train_steps=2,
         prefill=10,
         horizon=5,
         replay_size=100,

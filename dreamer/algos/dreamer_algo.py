@@ -149,8 +149,9 @@ class Dreamer(RlAlgorithm):
             self.actor_optimizer.zero_grad()
             self.value_optimizer.zero_grad()
 
-            loss = model_loss + value_loss + actor_loss
-            loss.backward()
+            model_loss.backward()
+            actor_loss.backward()
+            value_loss.backward()
 
             torch.nn.utils.clip_grad_norm_(get_parameters(self.model_modules), self.grad_clip)
             torch.nn.utils.clip_grad_norm_(get_parameters(self.actor_modules), self.grad_clip)
@@ -160,6 +161,8 @@ class Dreamer(RlAlgorithm):
             self.actor_optimizer.step()
             self.value_optimizer.step()
 
+            with torch.no_grad():
+                loss = model_loss + actor_loss + value_loss
             opt_info.loss.append(loss.item())
             for field in loss_info_fields:
                 if hasattr(opt_info, field):
@@ -251,7 +254,8 @@ class Dreamer(RlAlgorithm):
                 flat_post = buffer_method(post, 'reshape', batch_size, -1)
         # Rollout the policy for self.horizon steps. Variable names with imag_ indicate this data is imagined not real.
         # imag_feat shape is [horizon, batch_t * batch_b, feature_size]
-        imag_dist, _ = model.rollout.rollout_policy(self.horizon, model.policy, flat_post)
+        with FreezeParameters(self.model_modules):
+            imag_dist, _ = model.rollout.rollout_policy(self.horizon, model.policy, flat_post)
 
         # Use state features (deterministic and stochastic) to predict the image and reward
         imag_feat = get_feat(imag_dist)  # [horizon, batch_t * batch_b, feature_size]
@@ -325,7 +329,7 @@ class Dreamer(RlAlgorithm):
         # concatenate vertically on height dimension
         openl = torch.cat((ground_truth, model, error), dim=3)
         openl = openl.transpose(1, 0)  # N,T,C,H,W
-        video_summary('videos/model_error', openl, step)
+        video_summary('videos/model_error', torch.clamp(openl, 0., 1.), step)
 
     def compute_return(self,
                        reward: torch.Tensor,
