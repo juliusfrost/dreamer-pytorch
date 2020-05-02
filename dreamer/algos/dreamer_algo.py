@@ -165,9 +165,14 @@ class Dreamer(RlAlgorithm):
             with torch.no_grad():
                 loss = model_loss + actor_loss + value_loss
             opt_info.loss.append(loss.item())
-            opt_info.grad_norm_model.append(grad_norm_model.item())
-            opt_info.grad_norm_actor.append(grad_norm_actor.item())
-            opt_info.grad_norm_value.append(grad_norm_value.item())
+            if isinstance(grad_norm_model, torch.Tensor):
+                opt_info.grad_norm_model.append(grad_norm_model.item())
+                opt_info.grad_norm_actor.append(grad_norm_actor.item())
+                opt_info.grad_norm_value.append(grad_norm_value.item())
+            else:
+                opt_info.grad_norm_model.append(grad_norm_model)
+                opt_info.grad_norm_actor.append(grad_norm_actor)
+                opt_info.grad_norm_value.append(grad_norm_value)
             for field in loss_info_fields:
                 if hasattr(opt_info, field):
                     getattr(opt_info, field).append(getattr(loss_info, field).item())
