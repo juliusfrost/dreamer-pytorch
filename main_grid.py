@@ -18,7 +18,7 @@ from dreamer.envs.time_limit import TimeLimit
 from counterfactuals.environment import make_env as make_grid_env
 
 
-def build_and_train(log_dir, level="MiniGrid-FourRooms-v0", run_ID=0, cuda_idx=None, eval=False, save_model='last', load_model_path=None):
+def build_and_train(log_dir, level="Level_GoToLocalAvoidLava", run_ID=0, cuda_idx=None, eval=False, save_model='last', load_model_path=None):
     params = torch.load(load_model_path) if load_model_path else {}
     agent_state_dict = params.get('agent_state_dict')
     optimizer_state_dict = params.get('optimizer_state_dict')
@@ -68,7 +68,7 @@ def build_and_train(log_dir, level="MiniGrid-FourRooms-v0", run_ID=0, cuda_idx=N
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--level', help='BabyAI level', default='MiniGrid-FourRooms-v0')
+    parser.add_argument('--level', help='BabyAI level', default='Level_GoToLocalAvoidLava')
     parser.add_argument('--run-ID', help='run identifier (logging)', type=int, default=0)
     parser.add_argument('--cuda-idx', help='gpu to use ', type=int, default=None)
     parser.add_argument('--eval', action='store_true')

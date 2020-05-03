@@ -1,18 +1,21 @@
 import babyai
 from gym_minigrid.minigrid import MiniGridEnv, OBJECT_TO_IDX, COLOR_TO_IDX
-from gym_minigrid.wrappers import RGBImgObsWrapper
 import gym
 import numpy as np
 import random
 from dreamer.envs.wrapper import EnvWrapper
 from rlpyt.spaces.int_box import IntBox
-from dreamer.envs.env import StateObs
-from dreamer.envs.env import EnvInfo
+from dreamer.envs.env import StateObs, EnvInfo
+from dreamer.envs.babyai_levels import Level_GoToLocalAvoidLava
+
 from rlpyt.envs.base import EnvStep, Env
 
 class Minigrid(Env):
-    def __init__(self, level, slipperiness=0.0, one_hot_obs=True):
-        self._env = gym.make(level)
+    def __init__(self, level, slipperiness=0.0, one_hot_obs=True, **kwargs):
+        if level == "Level_GoToLocalAvoidLava":
+            self._env = Level_GoToLocalAvoidLava(**kwargs)
+        else:
+            self._env = gym.make(level)
         if one_hot_obs:
             self._env = OneHotObs(self._env)
         self.slipperiness = slipperiness
