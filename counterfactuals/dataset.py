@@ -159,10 +159,14 @@ class TrajectoryDataset:
             save_item(os.path.join(episode_dir, 'rewards'), trajectory.reward)
             save_item(os.path.join(episode_dir, 'steps'), trajectory.steps)
 
-    def load(self):
+    def load(self, save_location=None):
+        if save_location is None:
+            save_location = self.save_location
+            if save_location is None:
+                raise ValueError('Please provide save location!')
         count = 0
-        for f in os.listdir(self.save_location):
-            episode_path = os.path.join(self.save_location, f)
+        for f in os.listdir(save_location):
+            episode_path = os.path.join(save_location, f)
             if os.path.isdir(episode_path) and f.isnumeric():
                 episode = int(f)
                 print(f'loading episode {episode}')
