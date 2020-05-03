@@ -343,8 +343,9 @@ class Dreamer(RlAlgorithm):
         while not done:
             images.append(env.render())
             o = torchify_buffer(o)
+            o = buffer_to(o, self.agent.device)
             a = self.agent.model(o)
-            step_results = env.step(a.action.detach().numpy())
+            step_results = env.step(a.action.cpu().detach().numpy())
             o = step_results.observation
             done = step_results.done
             if hasattr(step_results.env_info, "traj_done") and step_results.env_info.traj_done:
