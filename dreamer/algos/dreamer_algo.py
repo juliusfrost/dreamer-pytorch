@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from rlpyt.algos.base import RlAlgorithm
 from rlpyt.replays.sequence.n_step import SamplesFromReplay
-from rlpyt.utils.buffer import buffer_to, buffer_method
+from rlpyt.utils.buffer import buffer_to, buffer_method, torchify_buffer
 from rlpyt.utils.collections import namedarraytuple
 from rlpyt.utils.quick_args import save__init__args
 from rlpyt.utils.tensor import infer_leading_dims
@@ -55,13 +55,15 @@ class Dreamer(RlAlgorithm):
             free_nats=3,
             kl_scale=1,
             type=torch.float,
-            prefill=5000,
+            prefill=100,
             log_video=True,
             video_every=int(1e1),
             video_summary_t=25,
             video_summary_b=4,
             use_pcont=False,
             pcont_scale=10.0,
+            env=None,
+            save_env_videos=False
     ):
         super().__init__()
         if optim_kwargs is None:
@@ -312,6 +314,8 @@ class Dreamer(RlAlgorithm):
 
             if self.log_video:
                 if opt_itr == self.train_steps - 1 and sample_itr % self.video_every == 0:
+                    if self.env is not None:
+                        self.write_env_videos(self.env, step=sample_itr)  # TODO: probably not the best place to record this video b/c this class shouldn't technically have access to the env.
                     self.write_videos(observation, action, image_pred, post, step=sample_itr, n=self.video_summary_b,
                                       t=self.video_summary_t)
 
@@ -339,6 +343,27 @@ class Dreamer(RlAlgorithm):
         openl = torch.cat((ground_truth, model, error), dim=3)
         openl = openl.transpose(1, 0)  # N,T,C,H,W
         video_summary('videos/model_error', torch.clamp(openl, 0., 1.), step)
+
+    def write_env_videos(self, env, step=None):
+        o = env.reset()  # kangaroo
+        done = False
+        images = []
+        i=0
+        while not done:
+            images.append(env.render())
+            o = torchify_buffer(o)
+            o = buffer_to(o, self.agent.device)
+            a = self.agent.model(o)
+            step_results = env.step(a.action.cpu().detach().numpy())
+            o = step_results.observation
+            done = step_results.done
+            if hasattr(step_results.env_info, "traj_done") and step_results.env_info.traj_done:
+                done = True
+            i += 1
+        openl = torch.stack([torch.tensor(i) for i in images], dim=0).permute(0, 3, 1, 2).unsqueeze(0) # N,T,C,H,W
+        video_summary('videos/real_rollout', openl, step)
+
+
 
     def compute_return(self,
                        reward: torch.Tensor,

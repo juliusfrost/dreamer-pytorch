@@ -33,7 +33,7 @@ class OneHotAction(EnvWrapper):
 
     def _sample_action(self):
         actions = self.env.action_space.n
-        index = self.random.randint(0, actions)
+        index = self.env.action_space.sample()
         reference = np.zeros(actions, dtype=self._dtype)
         reference[index] = 1.0
         return reference

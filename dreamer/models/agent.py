@@ -3,10 +3,11 @@ import torch
 import torch.nn as nn
 from rlpyt.utils.buffer import buffer_func
 from rlpyt.utils.collections import namedarraytuple
-from rlpyt.utils.tensor import infer_leading_dims, restore_leading_dims, to_onehot, from_onehot
+from rlpyt.utils.tensor import infer_leading_dims, restore_leading_dims
 
 from dreamer.models.action import ActionDecoder
 from dreamer.models.dense import DenseModel
+from dreamer.models.mini_observation import ObservationDecoder as MiniObservationDecoder, ObservationEncoder as MiniObservationEncoder
 from dreamer.models.observation import ObservationDecoder, ObservationEncoder
 from dreamer.models.rnns import RSSMState, RSSMRepresentation, RSSMTransition, RSSMRollout, get_feat
 
@@ -19,6 +20,9 @@ class AgentModel(nn.Module):
             deterministic_size=200,
             hidden_size=200,
             image_shape=(3, 64, 64),
+            stride=2,
+            depth=32,
+            padding=0,
             action_hidden_size=200,
             action_layers=3,
             action_dist='one_hot',
@@ -33,15 +37,22 @@ class AgentModel(nn.Module):
             use_pcont=False,
             pcont_layers=3,
             pcont_hidden=200,
+            full_conv=True,
             **kwargs,
     ):
         super().__init__()
-        self.observation_encoder = ObservationEncoder(shape=image_shape)
+        if full_conv:
+            EncoderClass = ObservationEncoder
+            DecoderClass = ObservationDecoder
+        else:
+            EncoderClass = MiniObservationEncoder
+            DecoderClass = MiniObservationDecoder
+        self.observation_encoder = EncoderClass(shape=image_shape, stride=stride, depth=depth, padding=padding)
         encoder_embed_size = self.observation_encoder.embed_size
         if state_size is not None:
             encoder_embed_size += state_size
         decoder_embed_size = stochastic_size + deterministic_size
-        self.observation_decoder = ObservationDecoder(embed_size=decoder_embed_size, shape=image_shape)
+        self.observation_decoder = DecoderClass(embed_size=decoder_embed_size, shape=image_shape, stride=stride)
         self.action_shape = action_shape
         output_size = np.prod(action_shape)
         self.transition = RSSMTransition(output_size, stochastic_size, deterministic_size, hidden_size)
@@ -147,5 +158,32 @@ class AtariDreamerModel(AgentModel):
         return_spec = buffer_func(return_spec, restore_leading_dims, lead_dim, T, B)
         return return_spec
 
+class MinigridDreamerModel(AgentModel):
+    def forward(self, observation: torch.Tensor, prev_action: torch.Tensor = None, prev_state: RSSMState = None):
+        if isinstance(observation, tuple):
+            img_obs, state_obs = observation
+            state_obs = state_obs.to(self.dtype).to(img_obs.device)
+            if len(state_obs.shape) == 1:
+                state_obs = state_obs.unsqueeze(0)
+        else:
+            img_obs = observation
+            state_obs = None
+
+        if prev_action is None:
+            prev_action = torch.zeros(self.action_size,
+                                      device=img_obs.device, dtype=img_obs.dtype)
+
+        lead_dim, T, B, img_shape = infer_leading_dims(img_obs, 3)
+        img_obs = img_obs.reshape(T * B, *img_shape).type(self.dtype) / 255.0 - 0.5
+        prev_action = prev_action.reshape(T * B, -1).to(self.dtype)
+        if prev_state is None:
+            prev_state = self.representation.initial_state(prev_action.size(0), device=prev_action.device,
+                                                           dtype=self.dtype)
+        state = self.get_state_representation(img_obs, state_obs, prev_action, prev_state)
+
+        action, action_dist = self.policy(state)
+        return_spec = ModelReturnSpec(action, state)
+        return_spec = buffer_func(return_spec, restore_leading_dims, lead_dim, T, B)
+        return return_spec
 
 ModelReturnSpec = namedarraytuple('ModelReturnSpec', ['action', 'state'])
