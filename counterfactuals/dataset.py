@@ -13,17 +13,12 @@ TrajectoryStep = namedtuple('TrajectoryStep', ['state', 'observation', 'action',
 
 Trajectory = namedtuple('Trajectory', ['episode', 'states', 'observations', 'actions', 'rewards', 'steps'])
 
-file_structure = {
-    'episode': {
-        'step': ['state', 'observation', 'action', 'reward']
-    }
-}
-
 NUM_DIGITS = 5
 MAX_NUMBER = 10 ** (NUM_DIGITS + 1) - 1
 
 
 def save_item(path, obj):
+    """saves the object to file based on its type"""
     if isinstance(obj, torch.Tensor):
         torch.save(obj, path + '.pt')
     elif isinstance(obj, np.ndarray):
@@ -33,6 +28,7 @@ def save_item(path, obj):
 
 
 def load_item(path):
+    """loads an object from the path depending on file type"""
     basename = os.path.basename(path)
     if basename.split('.')[-1] == 'pt':
         obj = torch.load(path)
@@ -44,12 +40,19 @@ def load_item(path):
 
 
 def leading_zeros(num: int):
+    """:returns a string of the number with leading zeros"""
     if num > MAX_NUMBER:
         raise ValueError(f'The maximum number is {MAX_NUMBER} but tried to use {num}')
     return f'{num:0{NUM_DIGITS}d}'
 
 
 def downsize(obj):
+    """
+    Use this method to save memory where possible.
+    Turns torch tensors into numpy arrays. If the size is 1, then it turns arrays into scalars.
+    :param obj: any object
+    :return: downsized object
+    """
     if isinstance(obj, torch.Tensor):
         obj = obj.cpu().numpy()
     if isinstance(obj, np.ndarray):
@@ -59,6 +62,7 @@ def downsize(obj):
 
 
 def stack(objs: list):
+    """stacks list of tensors/arrays into one big tensor/array"""
     if isinstance(objs[0], torch.Tensor):
         return torch.stack(objs)
     elif isinstance(objs[0], np.ndarray):
@@ -68,6 +72,7 @@ def stack(objs: list):
 
 
 def unstack(objs):
+    """unstacks tensor/array to a list of tensors/arrays"""
     if isinstance(objs, torch.Tensor):
         return list(objs)
     elif isinstance(objs, np.ndarray):
@@ -81,7 +86,7 @@ class TrajectoryDataset:
 
     def __init__(self, save_location=None):
         """
-
+        Creates a trajectory dataset that you can save and load from.
         :param save_location: path to dataset save location
         """
         self.save_location = save_location
@@ -93,7 +98,14 @@ class TrajectoryDataset:
         self.memory_episodes = []
         self.memory_steps = []
 
-    def append(self, episode, step, trajectory: TrajectoryStep):
+    def append(self, episode: int, step: int, trajectory: TrajectoryStep):
+        """
+        Append a single time step to an episode in the dataset.
+        :param episode: which episode to append to
+        :param step: the time step in the episode
+        :param trajectory: TrajectoryStep(state, observation, action, reward)
+        :return:
+        """
         self.memory_episodes.append(episode)
         self.memory_steps.append(step)
         self.memory_states.append(downsize(trajectory.state))
@@ -102,9 +114,21 @@ class TrajectoryDataset:
         self.memory_rewards.append(downsize(trajectory.reward))
 
     def add(self, episode, step, state, observation, action, reward):
+        """
+        Same as append, but has explicit arguments.
+        :param episode: typically an integer. specifies which episode to append to
+        :param step: typically an integer. specifies the time step in the episode
+        :param state: Can be simulation state or model state. Will downsize torch tensors and numpy arrays.
+            If a different type of object is given it will keep the reference so make sure pass a copy!
+        :param observation: Can by any object but preferably a tensor or array.
+        :param action: Can be any object, int, tensor, or array.
+        :param reward: Can be any object, int, tensor, or array.
+        :return:
+        """
         self.append(episode, step, TrajectoryStep(state, observation, action, reward))
 
     def trajectory_slices(self):
+        """:returns a generator to iterate of episode slices"""
         prev_episode = None
         prev_index = 0
         for i in range(len(self.memory_episodes)):
@@ -116,6 +140,7 @@ class TrajectoryDataset:
         yield prev_episode, slice(prev_index, len(self.memory_episodes))
 
     def trajectory_generator(self):
+        """:returns a generator to iterate over available trajectories"""
         if len(self.memory_episodes) == 0:
             raise ValueError('No trajectories in memory! Either call load() or append() new trajectories.')
         for episode, trajectory_slice in self.trajectory_slices():
@@ -129,6 +154,13 @@ class TrajectoryDataset:
             )
 
     def save(self, save_location=None):
+        """
+        Saves the whole dataset to save_location. Saves each episode in its own folder. The file format saved depends
+        on the downsized format.
+        :param save_location: must be a path. if not specified, it will use the one specified in __init__.
+            One should provide an empty directory and avoid overwriting if possible.
+        :return:
+        """
         if save_location is None:
             save_location = self.save_location
             if save_location is None:
@@ -160,6 +192,11 @@ class TrajectoryDataset:
             save_item(os.path.join(episode_dir, 'steps'), trajectory.steps)
 
     def load(self, save_location=None):
+        """
+        Load the whole dataset from a save_location.
+        :param save_location: must be a path. if not specified, it will use the one specified in __init__.
+        :return:
+        """
         if save_location is None:
             save_location = self.save_location
             if save_location is None:
@@ -190,6 +227,8 @@ class TrajectoryDataset:
 
 class TorchTrajectoryDataset(TrajectoryDataset, torch.utils.data.Dataset):
     def __init__(self, save_location=None):
+        """Trajectory dataset with torch compatibility. Make sure you call reset() before iterating through.
+            This is done after adding trajectories or loading to finalize the list of slices for iterating."""
         super().__init__(save_location)
         self.slices = None
 
@@ -220,6 +259,7 @@ class TorchTrajectoryDataset(TrajectoryDataset, torch.utils.data.Dataset):
 
 
 def collate_fn(list_trajectory: List[Trajectory]):
+    """Tensorfies the contents of the trajectories but keeps in a list. Use with torch.utils.data.DataLoader"""
     return [Trajectory(
         torch.tensor(trajectory.episode),
         torch.tensor(trajectory.states),
