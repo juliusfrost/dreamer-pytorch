@@ -224,6 +224,17 @@ class TrajectoryDataset:
                 count += 1
         print(f'Loaded {count} episodes')
 
+    def sort(self):
+        """Sort the memory, if for some reason you decided to add steps asynchronously."""
+        episode_step = [leading_zeros(e) + leading_zeros(s) for e, s in zip(self.memory_episodes, self.memory_steps)]
+        episode_indicies = np.argsort(episode_step)
+        self.memory_episodes = [self.memory_episodes[i] for i in episode_indicies]
+        self.memory_steps = [self.memory_steps[i] for i in episode_indicies]
+        self.memory_states = [self.memory_states[i] for i in episode_indicies]
+        self.memory_observations = [self.memory_observations[i] for i in episode_indicies]
+        self.memory_actions = [self.memory_actions[i] for i in episode_indicies]
+        self.memory_rewards = [self.memory_rewards[i] for i in episode_indicies]
+
 
 class TorchTrajectoryDataset(TrajectoryDataset, torch.utils.data.Dataset):
     def __init__(self, save_location=None):
