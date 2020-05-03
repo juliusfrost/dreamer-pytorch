@@ -9,9 +9,11 @@ import torch
 import torch.utils.data
 
 # state can be either simulation state or model state.
-TrajectoryStep = namedtuple('TrajectoryStep', ['state', 'observation', 'action', 'reward'])
+TrajectoryStep = namedtuple('TrajectoryStep', ['state', 'observation', 'action', 'reward', 'done', 'info'])
 
-Trajectory = namedtuple('Trajectory', ['episode', 'states', 'observations', 'actions', 'rewards', 'steps'])
+MEMORY_FIELDS = ['episode', 'step', 'state', 'observation', 'action', 'reward', 'done', 'info']
+
+Trajectory = namedtuple('Trajectory', MEMORY_FIELDS)
 
 NUM_DIGITS = 5
 MAX_NUMBER = 10 ** (NUM_DIGITS + 1) - 1
@@ -91,12 +93,7 @@ class TrajectoryDataset:
         """
         self.save_location = save_location
 
-        self._memory_states = []
-        self._memory_observations = []
-        self._memory_actions = []
-        self._memory_rewards = []
-        self._memory_episodes = []
-        self._memory_steps = []
+        self._memory = {key: [] for key in MEMORY_FIELDS}
 
     def append(self, episode: int, step: int, trajectory: TrajectoryStep):
         """
@@ -106,14 +103,16 @@ class TrajectoryDataset:
         :param trajectory: TrajectoryStep(state, observation, action, reward)
         :return:
         """
-        self._memory_episodes.append(episode)
-        self._memory_steps.append(step)
-        self._memory_states.append(downsize(trajectory.state))
-        self._memory_observations.append(downsize(trajectory.observation))
-        self._memory_actions.append(downsize(trajectory.action))
-        self._memory_rewards.append(downsize(trajectory.reward))
+        self._memory['episode'].append(episode)
+        self._memory['step'].append(step)
+        self._memory['state'].append(downsize(trajectory.state))
+        self._memory['observation'].append(downsize(trajectory.observation))
+        self._memory['action'].append(downsize(trajectory.action))
+        self._memory['reward'].append(downsize(trajectory.reward))
+        self._memory['done'].append(downsize(trajectory.done))
+        self._memory['info'].append(downsize(trajectory.info))
 
-    def add(self, episode, step, state, observation, action, reward):
+    def add(self, episode, step, state, observation, action, reward, done, info=None):
         """
         Same as append, but has explicit arguments.
         :param episode: typically an integer. specifies which episode to append to
@@ -123,35 +122,36 @@ class TrajectoryDataset:
         :param observation: Can by any object but preferably a tensor or array.
         :param action: Can be any object, int, tensor, or array.
         :param reward: Can be any object, int, tensor, or array.
+        :param done: Can be any object, int, tensor, or array.
+        :param info: Can be any object, int, tensor, or array.
         :return:
         """
-        self.append(episode, step, TrajectoryStep(state, observation, action, reward))
+        self.append(episode, step, TrajectoryStep(state, observation, action, reward, done, info))
 
     def trajectory_slices(self):
         """:returns a generator to iterate of episode slices"""
         prev_episode = None
         prev_index = 0
-        for i in range(len(self._memory_episodes)):
-            episode = self._memory_episodes[i]
+        for i in range(len(self._memory['episode'])):
+            episode = self._memory['episode'][i]
             if episode != prev_episode and prev_episode is not None:
                 yield prev_episode, slice(prev_index, i)
                 prev_index = i
             prev_episode = episode
-        yield prev_episode, slice(prev_index, len(self._memory_episodes))
+        yield prev_episode, slice(prev_index, len(self._memory['episode']))
+
+    def get_trajectory(self, episode, trajectory_slice):
+        return Trajectory(
+            episode,
+            **{key: stack(self._memory[key][trajectory_slice]) for key in MEMORY_FIELDS if key != 'episode'}
+        )
 
     def trajectory_generator(self):
         """:returns a generator to iterate over available trajectories"""
-        if len(self._memory_episodes) == 0:
+        if len(self._memory['episode']) == 0:
             raise ValueError('No trajectories in memory! Either call load() or append() new trajectories.')
         for episode, trajectory_slice in self.trajectory_slices():
-            yield Trajectory(
-                episode,
-                stack(self._memory_states[trajectory_slice]),
-                stack(self._memory_observations[trajectory_slice]),
-                stack(self._memory_actions[trajectory_slice]),
-                stack(self._memory_rewards[trajectory_slice]),
-                stack(self._memory_steps[trajectory_slice]),
-            )
+            yield self.get_trajectory(episode, trajectory_slice)
 
     def save(self, save_location=None):
         """
@@ -185,11 +185,9 @@ class TrajectoryDataset:
             episode_dir = os.path.join(save_location, leading_zeros(trajectory.episode))
             if not os.path.exists(episode_dir):
                 os.mkdir(episode_dir)
-            save_item(os.path.join(episode_dir, 'states'), trajectory.state)
-            save_item(os.path.join(episode_dir, 'observations'), trajectory.observation)
-            save_item(os.path.join(episode_dir, 'actions'), trajectory.action)
-            save_item(os.path.join(episode_dir, 'rewards'), trajectory.reward)
-            save_item(os.path.join(episode_dir, 'steps'), trajectory.steps)
+            for key in MEMORY_FIELDS:
+                if key != 'episode':
+                    save_item(os.path.join(episode_dir, key), getattr(trajectory, key))
 
     def load(self, save_location=None):
         """
@@ -206,34 +204,26 @@ class TrajectoryDataset:
             episode_path = os.path.join(save_location, f)
             if os.path.isdir(episode_path) and f.isnumeric():
                 episode = int(f)
-                print(f'loading episode {episode}')
-                state_path = glob.glob(os.path.join(episode_path, 'states') + '.*')[0]
-                observation_path = glob.glob(os.path.join(episode_path, 'observations') + '.*')[0]
-                action_path = glob.glob(os.path.join(episode_path, 'actions') + '.*')[0]
-                reward_path = glob.glob(os.path.join(episode_path, 'rewards') + '.*')[0]
-                step_path = glob.glob(os.path.join(episode_path, 'steps') + '.*')[0]
-                states = unstack(load_item(state_path))
-                observations = unstack(load_item(observation_path))
-                actions = unstack(load_item(action_path))
-                rewards = unstack(load_item(reward_path))
-                steps = unstack(load_item(step_path))
+                episode_memory = {}
+                for key in MEMORY_FIELDS:
+                    if key != 'episode':
+                        memory_path = glob.glob(os.path.join(episode_path, key) + '.*')[0]
+                        episode_memory.update({key: unstack(load_item(memory_path))})
 
-                for i in range(len(steps)):
-                    trajectory = TrajectoryStep(states[i], observations[i], actions[i], rewards[i])
-                    self.append(episode, steps[i], trajectory)
+                for i in range(len(episode_memory['step'])):
+                    kwargs = {key: episode_memory[key][i] for key in MEMORY_FIELDS if key != 'episode'}
+                    self.add(episode, **kwargs)
+
                 count += 1
         print(f'Loaded {count} episodes')
 
     def sort(self):
-        """Sort the memory, if for some reason you decided to add steps asynchronously."""
-        episode_step = [leading_zeros(e) + leading_zeros(s) for e, s in zip(self._memory_episodes, self._memory_steps)]
+        """Sort the memory, if for some reason you decided to add step asynchronously."""
+        episode_step = [leading_zeros(e) + leading_zeros(s) for e, s in
+                        zip(self._memory['episode'], self._memory['step'])]
         episode_indicies = np.argsort(episode_step)
-        self._memory_episodes = [self._memory_episodes[i] for i in episode_indicies]
-        self._memory_steps = [self._memory_steps[i] for i in episode_indicies]
-        self._memory_states = [self._memory_states[i] for i in episode_indicies]
-        self._memory_observations = [self._memory_observations[i] for i in episode_indicies]
-        self._memory_actions = [self._memory_actions[i] for i in episode_indicies]
-        self._memory_rewards = [self._memory_rewards[i] for i in episode_indicies]
+        for key in MEMORY_FIELDS:
+            self._memory[key] = [self._memory[key][i] for i in episode_indicies]
 
 
 class TorchTrajectoryDataset(TrajectoryDataset, torch.utils.data.Dataset):
@@ -259,23 +249,18 @@ class TorchTrajectoryDataset(TrajectoryDataset, torch.utils.data.Dataset):
         if self.slices is None:
             raise ValueError('Must call load() or reset() first!')
         episode, trajectory_slice = self.slices[item]
-        return Trajectory(
-            episode,
-            stack(self._memory_states[trajectory_slice]),
-            stack(self._memory_observations[trajectory_slice]),
-            stack(self._memory_actions[trajectory_slice]),
-            stack(self._memory_rewards[trajectory_slice]),
-            stack(self._memory_steps[trajectory_slice]),
-        )
+        return self.get_trajectory(episode, trajectory_slice)
 
 
 def collate_fn(list_trajectory: List[Trajectory]):
     """Tensorfies the contents of the trajectories but keeps in a list. Use with torch.utils.data.DataLoader"""
     return [Trajectory(
         torch.tensor(trajectory.episode),
-        torch.tensor(trajectory.states),
-        torch.tensor(trajectory.observations),
-        torch.tensor(trajectory.actions),
-        torch.tensor(trajectory.rewards),
-        torch.tensor(trajectory.steps),
+        torch.tensor(trajectory.step),
+        torch.tensor(trajectory.state),
+        torch.tensor(trajectory.observation),
+        torch.tensor(trajectory.action),
+        torch.tensor(trajectory.reward),
+        torch.tensor(trajectory.done),
+        trajectory.info,  # doesn't work for None type
     ) for trajectory in list_trajectory]
