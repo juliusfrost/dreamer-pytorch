@@ -91,12 +91,12 @@ class TrajectoryDataset:
         """
         self.save_location = save_location
 
-        self.memory_states = []
-        self.memory_observations = []
-        self.memory_actions = []
-        self.memory_rewards = []
-        self.memory_episodes = []
-        self.memory_steps = []
+        self._memory_states = []
+        self._memory_observations = []
+        self._memory_actions = []
+        self._memory_rewards = []
+        self._memory_episodes = []
+        self._memory_steps = []
 
     def append(self, episode: int, step: int, trajectory: TrajectoryStep):
         """
@@ -106,12 +106,12 @@ class TrajectoryDataset:
         :param trajectory: TrajectoryStep(state, observation, action, reward)
         :return:
         """
-        self.memory_episodes.append(episode)
-        self.memory_steps.append(step)
-        self.memory_states.append(downsize(trajectory.state))
-        self.memory_observations.append(downsize(trajectory.observation))
-        self.memory_actions.append(downsize(trajectory.action))
-        self.memory_rewards.append(downsize(trajectory.reward))
+        self._memory_episodes.append(episode)
+        self._memory_steps.append(step)
+        self._memory_states.append(downsize(trajectory.state))
+        self._memory_observations.append(downsize(trajectory.observation))
+        self._memory_actions.append(downsize(trajectory.action))
+        self._memory_rewards.append(downsize(trajectory.reward))
 
     def add(self, episode, step, state, observation, action, reward):
         """
@@ -131,26 +131,26 @@ class TrajectoryDataset:
         """:returns a generator to iterate of episode slices"""
         prev_episode = None
         prev_index = 0
-        for i in range(len(self.memory_episodes)):
-            episode = self.memory_episodes[i]
+        for i in range(len(self._memory_episodes)):
+            episode = self._memory_episodes[i]
             if episode != prev_episode and prev_episode is not None:
                 yield prev_episode, slice(prev_index, i)
                 prev_index = i
             prev_episode = episode
-        yield prev_episode, slice(prev_index, len(self.memory_episodes))
+        yield prev_episode, slice(prev_index, len(self._memory_episodes))
 
     def trajectory_generator(self):
         """:returns a generator to iterate over available trajectories"""
-        if len(self.memory_episodes) == 0:
+        if len(self._memory_episodes) == 0:
             raise ValueError('No trajectories in memory! Either call load() or append() new trajectories.')
         for episode, trajectory_slice in self.trajectory_slices():
             yield Trajectory(
                 episode,
-                stack(self.memory_states[trajectory_slice]),
-                stack(self.memory_observations[trajectory_slice]),
-                stack(self.memory_actions[trajectory_slice]),
-                stack(self.memory_rewards[trajectory_slice]),
-                stack(self.memory_steps[trajectory_slice]),
+                stack(self._memory_states[trajectory_slice]),
+                stack(self._memory_observations[trajectory_slice]),
+                stack(self._memory_actions[trajectory_slice]),
+                stack(self._memory_rewards[trajectory_slice]),
+                stack(self._memory_steps[trajectory_slice]),
             )
 
     def save(self, save_location=None):
@@ -226,14 +226,14 @@ class TrajectoryDataset:
 
     def sort(self):
         """Sort the memory, if for some reason you decided to add steps asynchronously."""
-        episode_step = [leading_zeros(e) + leading_zeros(s) for e, s in zip(self.memory_episodes, self.memory_steps)]
+        episode_step = [leading_zeros(e) + leading_zeros(s) for e, s in zip(self._memory_episodes, self._memory_steps)]
         episode_indicies = np.argsort(episode_step)
-        self.memory_episodes = [self.memory_episodes[i] for i in episode_indicies]
-        self.memory_steps = [self.memory_steps[i] for i in episode_indicies]
-        self.memory_states = [self.memory_states[i] for i in episode_indicies]
-        self.memory_observations = [self.memory_observations[i] for i in episode_indicies]
-        self.memory_actions = [self.memory_actions[i] for i in episode_indicies]
-        self.memory_rewards = [self.memory_rewards[i] for i in episode_indicies]
+        self._memory_episodes = [self._memory_episodes[i] for i in episode_indicies]
+        self._memory_steps = [self._memory_steps[i] for i in episode_indicies]
+        self._memory_states = [self._memory_states[i] for i in episode_indicies]
+        self._memory_observations = [self._memory_observations[i] for i in episode_indicies]
+        self._memory_actions = [self._memory_actions[i] for i in episode_indicies]
+        self._memory_rewards = [self._memory_rewards[i] for i in episode_indicies]
 
 
 class TorchTrajectoryDataset(TrajectoryDataset, torch.utils.data.Dataset):
@@ -261,11 +261,11 @@ class TorchTrajectoryDataset(TrajectoryDataset, torch.utils.data.Dataset):
         episode, trajectory_slice = self.slices[item]
         return Trajectory(
             episode,
-            stack(self.memory_states[trajectory_slice]),
-            stack(self.memory_observations[trajectory_slice]),
-            stack(self.memory_actions[trajectory_slice]),
-            stack(self.memory_rewards[trajectory_slice]),
-            stack(self.memory_steps[trajectory_slice]),
+            stack(self._memory_states[trajectory_slice]),
+            stack(self._memory_observations[trajectory_slice]),
+            stack(self._memory_actions[trajectory_slice]),
+            stack(self._memory_rewards[trajectory_slice]),
+            stack(self._memory_steps[trajectory_slice]),
         )
 
 
