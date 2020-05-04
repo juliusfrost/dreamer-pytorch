@@ -1,16 +1,13 @@
-import numpy as np
-import gym
-import gym_minigrid
-from gym_minigrid.wrappers import *
-from gym_minigrid.window import Window
-import babyai
 import copy
+
+from gym_minigrid.window import Window
 
 from counterfactuals.dataset import TrajectoryDataset, Trajectory, TrajectoryStep
 
 
 class Navigator:
     def __init__(self, index, min_index, max_index):
+        """Used as a simple way to constrain movement through time"""
         self.index = index
         self.min = min_index
         self.max = max_index
@@ -34,6 +31,8 @@ class Navigator:
 
 
 class TrajectoryNavigator(Navigator):
+    """Navigates the prior trajectory data"""
+
     def __init__(self, trajectory: Trajectory):
         self.trajectory = trajectory
         self.index = 0
@@ -58,6 +57,7 @@ class TrajectoryNavigator(Navigator):
 
 
 class CounterfactualNavigator(Navigator):
+    """Creates a counterfactual trajectory based on user action. Keeps track of a stack of states"""
 
     def __init__(self, policy_factory, episode: int, step: int, start: TrajectoryStep, max_steps=100):
         self.policy_factory = policy_factory
@@ -113,6 +113,36 @@ class CounterfactualNavigator(Navigator):
 
 
 class Interface:
+    """
+    User interface for generating counterfactual states and actions.
+    For each trajectory:
+        The user can use the `a` and `d` keys to go backward and forward in time to a specific state they wish to
+        generate a counterfaction explanation from. Once a specific state is found, the user presses `w` to launch the
+        counterfactual mode.
+        In the counterfactual mode, the user can control the agent using the keyboard. Once satisfied with their
+        progress, the user can give up control to the bot to finish the episode by pressing `w`.
+
+        The keys for controlling the agent are summarized here:
+
+        escape: quit the program
+
+        view mode:
+            d: next time step
+            a: previous time step
+            w: select time step and go to counterfactual mode
+
+        counterfactual mode:
+            left:          turn counter-clockwise
+            right:         turn clockwise
+            up:            go forward
+            space:         toggle
+            pageup or x:   pickup
+            pagedown or z: drop
+            enter or q:    done (should not use)
+            a:             undo action
+            w:             roll out to the end of the episode and move to next episode
+    """
+
     def __init__(self, policy_factory, original_dataset: TrajectoryDataset, counterfactual_dataset: TrajectoryDataset):
         self.policy_factory = policy_factory
         self.dataset = original_dataset
@@ -142,6 +172,7 @@ class Interface:
         img = env.render('rgb_array', tile_size=32)
         # else:
         # img = step.observation['image']
+        # TODO later: figure out when to use the observation instead.
 
         self.window.show_img(img)
 
@@ -184,6 +215,7 @@ class Interface:
 
         if event.key == 'escape':
             self.window.close()
+            exit()
             return
 
         # if event.key == 'backspace':

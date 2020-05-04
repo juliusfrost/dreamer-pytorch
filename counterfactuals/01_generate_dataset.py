@@ -3,11 +3,12 @@ import copy
 import os
 
 import gym
+from babyai.bot import Bot  # in case we want to use the oracle to generate optimal trajectories
 from tqdm import tqdm
 
-from counterfactuals.dataset import TrajectoryDataset, TrajectoryStep
 from counterfactuals import bots
-from babyai.bot import Bot # in case we want to use the oracle to generate optimal trajectories
+from counterfactuals.dataset import TrajectoryDataset, TrajectoryStep
+
 
 def main():
     parser = argparse.ArgumentParser()

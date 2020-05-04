@@ -1,14 +1,11 @@
 import argparse
-import copy
 import os
 
-import gym
-from tqdm import tqdm
-
-from counterfactuals.dataset import TrajectoryDataset, TrajectoryStep
-from counterfactuals import bots
-from counterfactuals.user import Interface
 from babyai.bot import Bot
+
+from counterfactuals import bots
+from counterfactuals.dataset import TrajectoryDataset
+from counterfactuals.user import Interface
 
 
 def main():
