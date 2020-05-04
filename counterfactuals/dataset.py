@@ -153,6 +153,21 @@ class TrajectoryDataset:
         for episode, trajectory_slice in self.trajectory_slices():
             yield self.get_trajectory(episode, trajectory_slice)
 
+    @property
+    def num_frames(self):
+        """
+        Get total number of frames in memory
+        """
+        return len(self._memory['episode'])
+
+    def get_frame(self, frame_num):
+        """
+        Get specific frame based on index in memory
+        """
+        return Trajectory(
+            **{key: stack([self._memory[key][frame_num]]) for key in MEMORY_FIELDS}
+        )
+
     def save(self, save_location=None):
         """
         Saves the whole dataset to save_location. Saves each episode in its own folder. The file format saved depends
