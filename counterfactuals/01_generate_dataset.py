@@ -6,22 +6,32 @@ import gym
 from tqdm import tqdm
 
 from counterfactuals.dataset import TrajectoryDataset, TrajectoryStep
-
+from counterfactuals import bots
+from babyai.bot import Bot # in case we want to use the oracle to generate optimal trajectories
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--save-dir', default=os.path.join('..', 'data', 'pretrained'))
-    parser.add_argument('--episodes', default=1000)
-    parser.add_argument('--env-name', default='babyai')  # TODO: fix with proper name
+    parser.add_argument('--episodes', default=1000, type=int)
+    parser.add_argument('--env-name', default='BabyAI-GoToLocal-v0', type=str)
+    parser.add_argument('--bot-name', default='RandomExplorationBot', type=str)
     args = parser.parse_args()
 
-    env = gym.make(args.env_name)
+    env = gym.make(args.env_name, room_size=15)
     dataset = TrajectoryDataset(args.save_dir)
 
-    policy = None  # TODO: implement
+    if hasattr(bots, args.bot_name):
+        bot_class = getattr(bots, args.bot_name)
+    elif env.bot_name.lower() == "bot":
+        bot_class = Bot
+    else:
+        raise ValueError("Invalid bot name")
+    policy = bots.Policy(bot_class, env)
 
     for episode in tqdm(range(args.episodes)):
         obs = env.reset()
+        if hasattr(policy, "reset"):
+            policy.reset()
         done = False
         step = 0
         while not done:
