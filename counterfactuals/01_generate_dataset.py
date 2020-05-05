@@ -16,6 +16,7 @@ def main():
     parser.add_argument('--episodes', default=1000, type=int)
     parser.add_argument('--env-name', default='BabyAI-GoToLocal-v0', type=str)
     parser.add_argument('--bot-name', default='RandomExplorationBot', type=str)
+    parser.add_argument('--max-steps', default=50)
     args = parser.parse_args()
 
     env = gym.make(args.env_name, room_size=15)
@@ -31,6 +32,8 @@ def main():
 
     for episode in tqdm(range(args.episodes)):
         obs = env.reset()
+        if hasattr(env, 'max_steps'):
+            env.max_steps = args.max_steps
         if hasattr(policy, "reset"):
             policy.reset()
         done = False
