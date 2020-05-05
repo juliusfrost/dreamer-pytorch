@@ -1,4 +1,4 @@
-from random import randint
+from random import sample
 from counterfactuals.dataset import TorchTrajectoryDataset, TrajectoryDataset, Trajectory
 from typing import List
 
@@ -12,11 +12,12 @@ class RandomStateSelection:
         self.dataset = dataset
         
 
-    def select_indices(self, num_samples: int) -> List[Trajectory]:
+    def select_indices(self, num_samples: int):
         """
         Select num_samples Trajectories from
+        NOTE: Returns step number, not index in list.
         """
-        
-        return [self.dataset.get_frame(randint(0, self.dataset.num_frames - 1)) for _ in range(num_samples)]
-
-
+        samples = []
+        for trajectory in self.dataset.trajectory_generator():
+            samples.append(sample(list(trajectory.step), num_samples))
+        return samples
