@@ -59,7 +59,7 @@ class TrajectoryNavigator(Navigator):
 class CounterfactualNavigator(Navigator):
     """Creates a counterfactual trajectory based on user action. Keeps track of a stack of states"""
 
-    def __init__(self, policy_factory, episode: int, step: int, start: TrajectoryStep, max_steps=100):
+    def __init__(self, episode: int, step: int, start: TrajectoryStep, policy_factory=None, max_steps=100):
         self.policy_factory = policy_factory
         self.episode = episode
         self.start = start
@@ -99,14 +99,19 @@ class CounterfactualNavigator(Navigator):
         env = copy.deepcopy(traj_step.state)
         policy = self.policy_factory(env)
         obs = traj_step.observation
+        count = 0
         while not done:
             action = policy(obs)
             obs, reward, done, info = env.step(action)
             next_traj_step = TrajectoryStep(copy.deepcopy(env), obs, action, reward, done, info)
             step += 1
             self.stack.append((episode, step, next_traj_step))
+            count += 1
+        print(f'Took policy {count} more steps to finish.')
 
     def store(self, dataset: TrajectoryDataset):
+        if len(self.stack) - 1 == 0:
+            raise Exception('Not enough steps in counterfactual trajectory to store! Dataset entry cant be generated!')
         for i in range(1, len(self.stack)):
             episode, step, traj_step = self.stack[i]
             dataset.append(episode, step, traj_step)
@@ -117,7 +122,7 @@ class Interface:
     User interface for generating counterfactual states and actions.
     For each trajectory:
         The user can use the `a` and `d` keys to go backward and forward in time to a specific state they wish to
-        generate a counterfaction explanation from. Once a specific state is found, the user presses `w` to launch the
+        generate a counterfactual explanation from. Once a specific state is found, the user presses `w` to launch the
         counterfactual mode.
         In the counterfactual mode, the user can control the agent using the keyboard. Once satisfied with their
         progress, the user can give up control to the bot to finish the episode by pressing `w`.
@@ -143,7 +148,8 @@ class Interface:
             w:             roll out to the end of the episode and move to next episode
     """
 
-    def __init__(self, policy_factory, original_dataset: TrajectoryDataset, counterfactual_dataset: TrajectoryDataset):
+    def __init__(self, original_dataset: TrajectoryDataset, counterfactual_dataset: TrajectoryDataset,
+                 policy_factory=None):
         self.policy_factory = policy_factory
         self.dataset = original_dataset
         self.counterfactual_dataset = counterfactual_dataset
@@ -199,7 +205,7 @@ class Interface:
 
     def select(self):
         new_navigator = CounterfactualNavigator(
-            self.policy_factory, self.navigator.episode, self.navigator.index, self.navigator.step())
+            self.navigator.episode, self.navigator.index, self.navigator.step(), policy_factory=self.policy_factory)
         self.navigator = new_navigator
         self.is_counterfactual = True
         print(f'Starting counterfactual trajectory from {self.navigator.index}')
@@ -248,7 +254,8 @@ class Interface:
                 return
 
             if event.key == 'w':
-                self.navigator.rollout()
+                if self.policy_factory is not None:
+                    self.navigator.rollout()
                 self.save_trajectory()
                 self.window.close()
 
