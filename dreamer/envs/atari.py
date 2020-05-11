@@ -19,7 +19,7 @@ class AtariEnv(Env):
             life_done=False, sticky_actions=True):
         import gym
         version = 0 if sticky_actions else 4
-        name = ''.join(word.title() for word in name.split('_'))
+        name = ''.join(word for word in name.split('_'))
         with self.LOCK:
             self._env = gym.make('{}NoFrameskip-v{}'.format(name, version))
         self._action_repeat = action_repeat
