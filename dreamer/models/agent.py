@@ -29,6 +29,9 @@ class AgentModel(nn.Module):
             value_layers=3,
             value_hidden=200,
             dtype=torch.float,
+            use_pcont=False,
+            pcont_layers=3,
+            pcont_hidden=200,
             **kwargs,
     ):
         super().__init__()
@@ -51,6 +54,8 @@ class AgentModel(nn.Module):
         self.dtype = dtype
         self.stochastic_size = stochastic_size
         self.deterministic_size = deterministic_size
+        if use_pcont:
+            self.pcont = DenseModel(feature_size, (1,), pcont_layers, pcont_hidden, dist='binary')
 
     def forward(self, observation: torch.Tensor, prev_action: torch.Tensor = None, prev_state: RSSMState = None):
         state = self.get_state_representation(observation, prev_action, prev_state)
