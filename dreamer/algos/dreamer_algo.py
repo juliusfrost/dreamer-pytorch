@@ -235,7 +235,7 @@ class Dreamer(RlAlgorithm):
         prior_dist = get_dist(prior)
         post_dist = get_dist(post)
         div = torch.mean(torch.distributions.kl.kl_divergence(post_dist, prior_dist))
-        div = torch.clamp(div, self.free_nats, float('inf'))
+        div = torch.max(div, torch.Tensor([self.free_nats]).to(div.device))[0]
         model_loss = self.kl_scale * div + reward_loss + image_loss
         if self.use_pcont:
             model_loss += self.pcont_scale * pcont_loss
