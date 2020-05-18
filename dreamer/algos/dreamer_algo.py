@@ -26,7 +26,7 @@ class Dreamer(RlAlgorithm):
 
     def __init__(
             self,  # Hyper-parameters
-            batch_size=16,
+            batch_size=50,
             batch_length=50,
             train_every=1000,
             train_steps=100,
