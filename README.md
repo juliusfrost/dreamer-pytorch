@@ -117,5 +117,5 @@ pytest tests --cov=dreamer
 ### Contributing
 Read `CONTRIBUTING.md`.
 Contact juliusf@bu.edu or send in a pull request.
-Join our [slack link](https://join.slack.com/t/dreamer-pytorch/shared_invite/zt-dobz7kf6-_tpAv1H9qkk8Ukov1Uy9qQ)
-(valid until 5/19/2020)
+Join our [slack link](https://join.slack.com/t/dreamer-pytorch/shared_invite/zt-emqv4p8h-rDWPNuDDk8Yxgjuym6gT8g)
+(updated 5/19/2020)
