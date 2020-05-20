@@ -48,7 +48,7 @@ class Dreamer(RlAlgorithm):
             OptimCls=torch.optim.Adam,
             optim_kwargs=None,
             initial_optim_state_dict=None,
-            replay_size=int(1e6),
+            replay_size=int(5e6),
             replay_ratio=8,
             n_step_return=1,
             updates_per_sync=1,  # For async mode only. (not implemented)
