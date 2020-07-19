@@ -224,9 +224,7 @@ class Dreamer(RlAlgorithm):
         image_pred = model.observation_decoder(feat)
         reward_pred = model.reward_model(feat)
         reward_loss = -torch.mean(reward_pred.log_prob(reward))
-        img_count = np.prod(observation.shape[-3:])
         image_loss = -torch.mean(image_pred.log_prob(observation))
-        image_loss = image_loss * img_count
         pcont_loss = torch.tensor(0.)  # placeholder if use_pcont = False
         if self.use_pcont:
             pcont_pred = model.pcont(feat)
