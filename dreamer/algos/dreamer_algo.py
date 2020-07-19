@@ -105,7 +105,7 @@ class Dreamer(RlAlgorithm):
                                                 **self.optim_kwargs)
         self.actor_optimizer = torch.optim.Adam(get_parameters(self.actor_modules), lr=self.actor_lr,
                                                 **self.optim_kwargs)
-        self.value_optimizer = torch.optim.Adam(get_parameters(self.model_modules), lr=self.value_lr,
+        self.value_optimizer = torch.optim.Adam(get_parameters(self.value_modules), lr=self.value_lr,
                                                 **self.optim_kwargs)
 
         if self.initial_optim_state_dict is not None:
