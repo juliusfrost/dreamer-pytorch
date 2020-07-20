@@ -39,12 +39,10 @@ class ObservationEncoder(nn.Module):
 
 
 class ObservationDecoder(nn.Module):
-    def __init__(self, depth=32, stride=2, activation=nn.ReLU, embed_size=1024, shape=(3, 64, 64),
-                 distribution=td.Normal):
+    def __init__(self, depth=32, stride=2, activation=nn.ReLU, embed_size=1024, shape=(3, 64, 64)):
         super().__init__()
         self.depth = depth
         self.shape = shape
-        self.distribution = distribution
 
         c, h, w = shape
         conv1_kernel_size = 6
@@ -85,7 +83,7 @@ class ObservationDecoder(nn.Module):
         x = torch.reshape(x, (squeezed_size, *self.conv_shape))
         x = self.decoder(x)
         mean = torch.reshape(x, (*batch_shape, *self.shape))
-        obs_dist = self.distribution(mean, 1)
+        obs_dist = td.Independent(td.Normal(mean, 1), len(self.shape))
         return obs_dist
 
 

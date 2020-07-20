@@ -24,7 +24,7 @@ def get_feat(rssm_state: RSSMState):
 
 
 def get_dist(rssm_state: RSSMState):
-    return td.Normal(rssm_state.mean, rssm_state.std)
+    return td.independent.Independent(td.Normal(rssm_state.mean, rssm_state.std), 1)
 
 
 class TransitionBase(nn.Module):
