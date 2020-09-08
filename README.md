@@ -10,6 +10,24 @@ Project Website: https://danijar.com/project/dreamer/
 TensorFlow 2 implementation: https://github.com/danijar/dreamer  
 TensorFlow 1 implementation: https://github.com/google-research/dreamer  
 
+## Results
+
+| Task                    | Average Return @ 1M | Dreamer Paper @ 1M |
+|-------------------------|---------------------|--------------------|
+| Acrobot Swingup         | 69.54               | ~300               |
+| Cartpole Balance        | 877.5               | ~990               |
+| Cartpole Balance Sparse | 814                 | ~900               |
+| Cartpole Swingup        | 633.6               | ~800               |
+| Cup Catch               | 885.1               | ~990               |
+| Finger Turn Hard        | 212.8               | ~550               |
+| Hopper Hop              | 219                 | ~250               |
+
+Table 1. Dreamer PyTorch vs. Paper Implementation
+
+- 1 random seed for PyTorch, 5 for the paper
+- Code @ commit [ccea6ae](https://github.com/juliusfrost/dreamer-pytorch/commit/ccea6ae4a397a94c328891bd78e81d52dd156cb6)
+- 37H for 1M steps on P100, 20H for 1M steps on V100
+
 ## Installation
 
 ### Install packages
