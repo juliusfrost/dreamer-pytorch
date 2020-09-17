@@ -21,6 +21,12 @@ TensorFlow 1 implementation: https://github.com/google-research/dreamer
 | Cup Catch               | 885.1               | ~990               |
 | Finger Turn Hard        | 212.8               | ~550               |
 | Hopper Hop              | 219                 | ~250               |
+| Hopper Stand            | 511.6               | ~990               |
+| Pendulum Swingup        | 724.9               | ~760               |
+| Quadruped Run           | 112.4               | ~450               |
+| Quadruped Walk          | 52.82               | ~650               |
+| Reacher Easy            | 962.8               | ~950               |
+| Walker Stand            | 956.8               | ~990               |
 
 Table 1. Dreamer PyTorch vs. Paper Implementation
 
