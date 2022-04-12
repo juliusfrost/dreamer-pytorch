@@ -3,32 +3,6 @@ import torch.nn.functional as F
 import torch.distributions
 import numpy as np
 
-class TanhBijector(torch.distributions.Transform):
-    def __init__(self):
-        super().__init__()
-        self.bijective = True
-
-    @property
-    def sign(self):
-        return 1.
-
-    def _call(self, x):
-        return torch.tanh(x)
-
-    def _inverse(self, y: torch.Tensor):
-        y = torch.where(
-            (torch.abs(y) <= 1.),
-            torch.clamp(y, -0.99999997, 0.99999997),
-            y
-        )
-
-        y = atanh(y)
-        return y
-
-    def log_abs_det_jacobian(self, x, y):
-        return 2. * (np.log(2) - x - F.softplus(-2. * x))
-
-
 class SampleDist:
 
     def __init__(self, dist: torch.distributions.Distribution, samples=100):
