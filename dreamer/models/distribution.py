@@ -38,7 +38,3 @@ class SampleDist:
 
     def sample(self):
         return self._dist.sample()
-
-
-def atanh(x):
-    return 0.5 * torch.log((1 + x) / (1 - x))
