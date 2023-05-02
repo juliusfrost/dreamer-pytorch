@@ -3,13 +3,13 @@ import gym
 from dreamer.envs.wrapper import EnvWrapper
 from rlpyt.spaces.float_box import FloatBox
 
-class NormalizeActions(EnvWrapper):
 
+class NormalizeActions(EnvWrapper):
     def __init__(self, env):
         super().__init__(env)
         self._mask = np.logical_and(
-            np.isfinite(env.action_space.low),
-            np.isfinite(env.action_space.high))
+            np.isfinite(env.action_space.low), np.isfinite(env.action_space.high)
+        )
         self._low = np.where(self._mask, env.action_space.low, -1)
         self._high = np.where(self._mask, env.action_space.high, 1)
 

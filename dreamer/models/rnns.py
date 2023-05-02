@@ -7,7 +7,7 @@ from rlpyt.utils.buffer import buffer_method
 
 from dreamer.utils.module import FreezeParameters
 
-RSSMState = namedarraytuple('RSSMState', ['mean', 'std', 'stoch', 'deter'])
+RSSMState = namedarraytuple("RSSMState", ["mean", "std", "stoch", "deter"])
 
 
 def stack_states(rssm_states: list, dim):
@@ -54,8 +54,15 @@ class RollOutModule(nn.Module):
 
 
 class RSSMTransition(TransitionBase):
-    def __init__(self, action_size, stochastic_size=30, deterministic_size=200, hidden_size=200, activation=nn.ELU,
-                 distribution=td.Normal):
+    def __init__(
+        self,
+        action_size,
+        stochastic_size=30,
+        deterministic_size=200,
+        hidden_size=200,
+        activation=nn.ELU,
+        distribution=td.Normal,
+    ):
         super().__init__()
         self._action_size = action_size
         self._stoch_size = stochastic_size
@@ -68,7 +75,9 @@ class RSSMTransition(TransitionBase):
         self._dist = distribution
 
     def _build_rnn_input_model(self):
-        rnn_input_model = [nn.Linear(self._action_size + self._stoch_size, self._hidden_size)]
+        rnn_input_model = [
+            nn.Linear(self._action_size + self._stoch_size, self._hidden_size)
+        ]
         rnn_input_model += [self._activation()]
         return nn.Sequential(*rnn_input_model)
 
@@ -87,7 +96,9 @@ class RSSMTransition(TransitionBase):
         )
 
     def forward(self, prev_action: torch.Tensor, prev_state: RSSMState):
-        rnn_input = self._rnn_input_model(torch.cat([prev_action, prev_state.stoch], dim=-1))
+        rnn_input = self._rnn_input_model(
+            torch.cat([prev_action, prev_state.stoch], dim=-1)
+        )
         deter_state = self._cell(rnn_input, prev_state.deter)
         mean, std = torch.chunk(self._stochastic_prior_model(deter_state), 2, dim=-1)
         std = tf.softplus(std) + 0.1
@@ -97,8 +108,17 @@ class RSSMTransition(TransitionBase):
 
 
 class RSSMRepresentation(RepresentationBase):
-    def __init__(self, transition_model: RSSMTransition, obs_embed_size, action_size, stochastic_size=30,
-                 deterministic_size=200, hidden_size=200, activation=nn.ELU, distribution=td.Normal):
+    def __init__(
+        self,
+        transition_model: RSSMTransition,
+        obs_embed_size,
+        action_size,
+        stochastic_size=30,
+        deterministic_size=200,
+        hidden_size=200,
+        activation=nn.ELU,
+        distribution=td.Normal,
+    ):
         super().__init__()
         self._transition_model = transition_model
         self._obs_embed_size = obs_embed_size
@@ -111,7 +131,9 @@ class RSSMRepresentation(RepresentationBase):
         self._stochastic_posterior_model = self._build_stochastic_model()
 
     def _build_stochastic_model(self):
-        stochastic_model = [nn.Linear(self._deter_size + self._obs_embed_size, self._hidden_size)]
+        stochastic_model = [
+            nn.Linear(self._deter_size + self._obs_embed_size, self._hidden_size)
+        ]
         stochastic_model += [self._activation()]
         stochastic_model += [nn.Linear(self._hidden_size, 2 * self._stoch_size)]
         return nn.Sequential(*stochastic_model)
@@ -124,7 +146,9 @@ class RSSMRepresentation(RepresentationBase):
             torch.zeros(batch_size, self._deter_size, **kwargs),
         )
 
-    def forward(self, obs_embed: torch.Tensor, prev_action: torch.Tensor, prev_state: RSSMState):
+    def forward(
+        self, obs_embed: torch.Tensor, prev_action: torch.Tensor, prev_state: RSSMState
+    ):
         prior_state = self._transition_model(prev_action, prev_state)
         x = torch.cat([prior_state.deter, obs_embed], -1)
         mean, std = torch.chunk(self._stochastic_posterior_model(x), 2, dim=-1)
@@ -136,16 +160,29 @@ class RSSMRepresentation(RepresentationBase):
 
 
 class RSSMRollout(RollOutModule):
-    def __init__(self, representation_model: RSSMRepresentation, transition_model: RSSMTransition):
+    def __init__(
+        self, representation_model: RSSMRepresentation, transition_model: RSSMTransition
+    ):
         super().__init__()
         self.representation_model = representation_model
         self.transition_model = transition_model
 
-    def forward(self, steps: int, obs_embed: torch.Tensor, action: torch.Tensor, prev_state: RSSMState):
+    def forward(
+        self,
+        steps: int,
+        obs_embed: torch.Tensor,
+        action: torch.Tensor,
+        prev_state: RSSMState,
+    ):
         return self.rollout_representation(steps, obs_embed, action, prev_state)
 
-    def rollout_representation(self, steps: int, obs_embed: torch.Tensor, action: torch.Tensor,
-                               prev_state: RSSMState):
+    def rollout_representation(
+        self,
+        steps: int,
+        obs_embed: torch.Tensor,
+        action: torch.Tensor,
+        prev_state: RSSMState,
+    ):
         """
         Roll out the model with actions and observations from data.
         :param steps: number of steps to roll out
@@ -157,7 +194,9 @@ class RSSMRollout(RollOutModule):
         priors = []
         posteriors = []
         for t in range(steps):
-            prior_state, posterior_state = self.representation_model(obs_embed[t], action[t], prev_state)
+            prior_state, posterior_state = self.representation_model(
+                obs_embed[t], action[t], prev_state
+            )
             priors.append(prior_state)
             posteriors.append(posterior_state)
             prev_state = posterior_state
@@ -165,7 +204,9 @@ class RSSMRollout(RollOutModule):
         post = stack_states(posteriors, dim=0)
         return prior, post
 
-    def rollout_transition(self, steps: int, action: torch.Tensor, prev_state: RSSMState):
+    def rollout_transition(
+        self, steps: int, action: torch.Tensor, prev_state: RSSMState
+    ):
         """
         Roll out the model with actions from data.
         :param steps: number of steps to roll out
@@ -192,9 +233,9 @@ class RSSMRollout(RollOutModule):
         state = prev_state
         next_states = []
         actions = []
-        state = buffer_method(state, 'detach')
+        state = buffer_method(state, "detach")
         for t in range(steps):
-            action, _ = policy(buffer_method(state, 'detach'))
+            action, _ = policy(buffer_method(state, "detach"))
             state = self.transition_model(action, state)
             next_states.append(state)
             actions.append(action)

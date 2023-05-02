@@ -1,6 +1,11 @@
 import torch
 
-from dreamer.models.rnns import RSSMState, RSSMTransition, RSSMRepresentation, RSSMRollout
+from dreamer.models.rnns import (
+    RSSMState,
+    RSSMTransition,
+    RSSMRepresentation,
+    RSSMRollout,
+)
 from dreamer.models.distribution import SampleDist
 
 
@@ -12,8 +17,13 @@ def test_rssm():
     batch_size = 4
 
     transition_model = RSSMTransition(action_size, stochastic_size, deterministic_size)
-    representation_model = RSSMRepresentation(transition_model, obs_embed_size, action_size, stochastic_size,
-                                              deterministic_size)
+    representation_model = RSSMRepresentation(
+        transition_model,
+        obs_embed_size,
+        action_size,
+        stochastic_size,
+        deterministic_size,
+    )
 
     obs_embed: torch.Tensor = torch.randn(batch_size, obs_embed_size)
     prev_action: torch.Tensor = torch.randn(batch_size, action_size)
@@ -34,8 +44,13 @@ def test_rollouts():
     time_steps = 10
 
     transition_model = RSSMTransition(action_size, stochastic_size, deterministic_size)
-    representation_model = RSSMRepresentation(transition_model, obs_embed_size, action_size, stochastic_size,
-                                              deterministic_size)
+    representation_model = RSSMRepresentation(
+        transition_model,
+        obs_embed_size,
+        action_size,
+        stochastic_size,
+        deterministic_size,
+    )
 
     rollout_module = RSSMRollout(representation_model, transition_model)
 
@@ -56,7 +71,9 @@ def test_rollouts():
     assert prior.deter.shape == (time_steps, batch_size, deterministic_size)
     assert post.deter.shape == (time_steps, batch_size, deterministic_size)
 
-    prior = rollout_module.rollout_transition(time_steps, action, transition_model.initial_state(batch_size))
+    prior = rollout_module.rollout_transition(
+        time_steps, action, transition_model.initial_state(batch_size)
+    )
     assert isinstance(prior, RSSMState)
     assert prior.mean.shape == (time_steps, batch_size, stochastic_size)
     assert prior.std.shape == (time_steps, batch_size, stochastic_size)
@@ -66,7 +83,7 @@ def test_rollouts():
     def policy(state):
         action = torch.randn(state.stoch.size(0), action_size)
         mean = torch.randn(state.stoch.size(0), action_size)
-        std = torch.randn(state.stoch.size(0), action_size)
+        std = torch.rand(state.stoch.size(0), action_size)
         action_dist = SampleDist(torch.distributions.Normal(mean, std))
         return action, action_dist
 

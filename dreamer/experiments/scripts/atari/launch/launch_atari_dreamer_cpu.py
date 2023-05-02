@@ -1,12 +1,15 @@
 import os
 from rlpyt.utils.launching.affinity import encode_affinity
+
 # from rlpyt.utils.launching.exp_launcher import run_experiments
 from rlpyt.utils.launching.variant import make_variants, VariantLevel
 
 from dreamer.utils.launching.exp_launcher import run_experiments
 
-if __name__ == '__main__':
-    script = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'train', 'atari_dreamer_cpu.py'))
+if __name__ == "__main__":
+    script = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "..", "train", "atari_dreamer_cpu.py")
+    )
     print(script)
     affinity_code = encode_affinity(
         n_cpu_core=6,

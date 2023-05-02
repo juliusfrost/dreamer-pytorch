@@ -130,7 +130,6 @@ dmypy.json
 
 # rlpyt
 data/
-rlpyt/
 
 # PyCharm
 .idea/

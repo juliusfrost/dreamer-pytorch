@@ -7,11 +7,16 @@ import os
 import os.path as osp
 import datetime
 
-from rlpyt.utils.launching.affinity import get_n_run_slots, prepend_run_slot, affinity_from_code
+from rlpyt.utils.launching.affinity import (
+    get_n_run_slots,
+    prepend_run_slot,
+    affinity_from_code,
+)
+
 # from rlpyt.utils.logging.context import get_log_dir
 from rlpyt.utils.launching.variant import save_variant
 
-LOG_DIR = osp.abspath(osp.join(osp.dirname(__file__), '../../../data'))
+LOG_DIR = osp.abspath(osp.join(osp.dirname(__file__), "../../../data"))
 
 
 def get_log_dir(experiment_name):
@@ -24,8 +29,10 @@ def log_exps_tree(exp_dir, log_dirs, runs_per_setting):
     os.makedirs(exp_dir, exist_ok=True)
     with open(osp.join(exp_dir, "experiments_tree.txt"), "w") as f:
         f.write(f"Experiment manager process ID: {os.getpid()}.\n")
-        f.write("Number of settings (experiments) to run: "
-                f"{len(log_dirs)}  ({runs_per_setting * len(log_dirs)}).\n\n")
+        f.write(
+            "Number of settings (experiments) to run: "
+            f"{len(log_dirs)}  ({runs_per_setting * len(log_dirs)}).\n\n"
+        )
         [f.write(log_dir + "\n") for log_dir in log_dirs]
 
 
@@ -62,8 +69,17 @@ def launch_experiment(script, run_slot, affinity_code, log_dir, variant, run_ID,
     return p
 
 
-def run_experiments(script, affinity_code, experiment_title, runs_per_setting,
-                    variants, log_dirs, common_args=None, runs_args=None, data_dir=None):
+def run_experiments(
+    script,
+    affinity_code,
+    experiment_title,
+    runs_per_setting,
+    variants,
+    log_dirs,
+    common_args=None,
+    runs_args=None,
+    data_dir=None,
+):
     """Call in a script to run a set of experiments locally on a machine.  Uses
     the ``launch_experiment()`` function for each individual run, which is a
     call to the ``script`` file.  The number of experiments to run at the same

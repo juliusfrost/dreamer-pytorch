@@ -39,7 +39,9 @@ class ObservationEncoder(nn.Module):
 
 
 class ObservationDecoder(nn.Module):
-    def __init__(self, depth=32, stride=2, activation=nn.ReLU, embed_size=1024, shape=(3, 64, 64)):
+    def __init__(
+        self, depth=32, stride=2, activation=nn.ReLU, embed_size=1024, shape=(3, 64, 64)
+    ):
         super().__init__()
         self.depth = depth
         self.shape = shape
@@ -51,23 +53,51 @@ class ObservationDecoder(nn.Module):
         conv4_kernel_size = 5
         padding = 0
         conv1_shape = conv_out_shape((h, w), padding, conv1_kernel_size, stride)
-        conv1_pad = output_padding_shape((h, w), conv1_shape, padding, conv1_kernel_size, stride)
+        conv1_pad = output_padding_shape(
+            (h, w), conv1_shape, padding, conv1_kernel_size, stride
+        )
         conv2_shape = conv_out_shape(conv1_shape, padding, conv2_kernel_size, stride)
-        conv2_pad = output_padding_shape(conv1_shape, conv2_shape, padding, conv2_kernel_size, stride)
+        conv2_pad = output_padding_shape(
+            conv1_shape, conv2_shape, padding, conv2_kernel_size, stride
+        )
         conv3_shape = conv_out_shape(conv2_shape, padding, conv3_kernel_size, stride)
-        conv3_pad = output_padding_shape(conv2_shape, conv3_shape, padding, conv3_kernel_size, stride)
+        conv3_pad = output_padding_shape(
+            conv2_shape, conv3_shape, padding, conv3_kernel_size, stride
+        )
         conv4_shape = conv_out_shape(conv3_shape, padding, conv4_kernel_size, stride)
-        conv4_pad = output_padding_shape(conv3_shape, conv4_shape, padding, conv4_kernel_size, stride)
+        conv4_pad = output_padding_shape(
+            conv3_shape, conv4_shape, padding, conv4_kernel_size, stride
+        )
         self.conv_shape = (32 * depth, *conv4_shape)
         self.linear = nn.Linear(embed_size, 32 * depth * np.prod(conv4_shape).item())
         self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(32 * depth, 4 * depth, conv4_kernel_size, stride, output_padding=conv4_pad),
+            nn.ConvTranspose2d(
+                32 * depth,
+                4 * depth,
+                conv4_kernel_size,
+                stride,
+                output_padding=conv4_pad,
+            ),
             activation(),
-            nn.ConvTranspose2d(4 * depth, 2 * depth, conv3_kernel_size, stride, output_padding=conv3_pad),
+            nn.ConvTranspose2d(
+                4 * depth,
+                2 * depth,
+                conv3_kernel_size,
+                stride,
+                output_padding=conv3_pad,
+            ),
             activation(),
-            nn.ConvTranspose2d(2 * depth, 1 * depth, conv2_kernel_size, stride, output_padding=conv2_pad),
+            nn.ConvTranspose2d(
+                2 * depth,
+                1 * depth,
+                conv2_kernel_size,
+                stride,
+                output_padding=conv2_pad,
+            ),
             activation(),
-            nn.ConvTranspose2d(1 * depth, shape[0], conv1_kernel_size, stride, output_padding=conv1_pad),
+            nn.ConvTranspose2d(
+                1 * depth, shape[0], conv1_kernel_size, stride, output_padding=conv1_pad
+            ),
         )
 
     def forward(self, x):
@@ -88,7 +118,7 @@ class ObservationDecoder(nn.Module):
 
 
 def conv_out(h_in, padding, kernel_size, stride):
-    return int((h_in + 2. * padding - (kernel_size - 1.) - 1.) / stride + 1.)
+    return int((h_in + 2.0 * padding - (kernel_size - 1.0) - 1.0) / stride + 1.0)
 
 
 def output_padding(h_in, conv_out, padding, kernel_size, stride):
@@ -100,4 +130,7 @@ def conv_out_shape(h_in, padding, kernel_size, stride):
 
 
 def output_padding_shape(h_in, conv_out, padding, kernel_size, stride):
-    return tuple(output_padding(h_in[i], conv_out[i], padding, kernel_size, stride) for i in range(len(h_in)))
+    return tuple(
+        output_padding(h_in[i], conv_out[i], padding, kernel_size, stride)
+        for i in range(len(h_in))
+    )

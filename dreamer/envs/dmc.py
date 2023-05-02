@@ -13,11 +13,10 @@ from dreamer.envs.env import EnvInfo
 
 
 class DeepMindControl(Env):
-
     def __init__(self, name, size=(64, 64), camera=None):
-        domain, task = name.split('_', 1)
-        if domain == 'cup':  # Only domain with multiple words.
-            domain = 'ball_in_cup'
+        domain, task = name.split("_", 1)
+        if domain == "cup":  # Only domain with multiple words.
+            domain = "ball_in_cup"
         if isinstance(domain, str):
             self._env = suite.load(domain, task)
         else:
@@ -30,8 +29,7 @@ class DeepMindControl(Env):
 
     @property
     def observation_space(self):
-        return IntBox(low=0, high=255, shape=(3,) + self._size,
-                      dtype="uint8")
+        return IntBox(low=0, high=255, shape=(3,) + self._size, dtype="uint8")
 
     @property
     def action_space(self):
@@ -55,9 +53,13 @@ class DeepMindControl(Env):
         return obs
 
     def render(self, *args, **kwargs):
-        if kwargs.get('mode', 'rgb_array') != 'rgb_array':
+        if kwargs.get("mode", "rgb_array") != "rgb_array":
             raise ValueError("Only render mode 'rgb_array' is supported.")
-        return self._env.physics.render(*self._size, camera_id=self._camera).transpose(2, 0, 1).copy()
+        return (
+            self._env.physics.render(*self._size, camera_id=self._camera)
+            .transpose(2, 0, 1)
+            .copy()
+        )
 
     @property
     def horizon(self):

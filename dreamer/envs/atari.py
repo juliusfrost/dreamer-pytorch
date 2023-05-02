@@ -15,13 +15,21 @@ class AtariEnv(Env):
     LOCK = threading.Lock()
 
     def __init__(
-            self, name, action_repeat=4, size=(84, 84), grayscale=True, noops=30,
-            life_done=False, sticky_actions=True):
+        self,
+        name,
+        action_repeat=4,
+        size=(84, 84),
+        grayscale=True,
+        noops=30,
+        life_done=False,
+        sticky_actions=True,
+    ):
         import gym
+
         version = 0 if sticky_actions else 4
-        name = ''.join(word.title() for word in name.split('_'))
+        name = "".join(word.title() for word in name.split("_"))
         with self.LOCK:
-            self._env = gym.make('{}NoFrameskip-v{}'.format(name, version))
+            self._env = gym.make("{}NoFrameskip-v{}".format(name, version))
         self._action_repeat = action_repeat
         self._size = size
         self._grayscale = grayscale
@@ -90,8 +98,9 @@ class AtariEnv(Env):
     def _get_obs(self):
         if self._action_repeat > 1:
             np.maximum(self._buffers[0], self._buffers[1], out=self._buffers[0])
-        image = np.array(Image.fromarray(self._buffers[0]).resize(
-            self._size, Image.BILINEAR))
+        image = np.array(
+            Image.fromarray(self._buffers[0]).resize(self._size, Image.BILINEAR)
+        )
         image = np.clip(image, 0, 255).astype(np.uint8)
         image = image[:, :, None] if self._grayscale else image
         image = np.transpose(image, (2, 0, 1))

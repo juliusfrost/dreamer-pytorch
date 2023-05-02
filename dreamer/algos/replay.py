@@ -1,8 +1,9 @@
 from rlpyt.replays.sequence.uniform import UniformSequenceReplayBuffer
 from rlpyt.utils.collections import namedarraytuple
 
-SamplesToBuffer = namedarraytuple("SamplesToBuffer",
-                                  ["observation", "action", "reward", "done"])
+SamplesToBuffer = namedarraytuple(
+    "SamplesToBuffer", ["observation", "action", "reward", "done"]
+)
 
 
 def initialize_replay_buffer(self, examples, batch_spec, async_=False):

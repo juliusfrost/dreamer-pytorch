@@ -2,8 +2,14 @@ import pytest
 import torch
 import torch.distributions
 
-from dreamer.models.observation import ObservationEncoder, ObservationDecoder, conv_out, conv_out_shape, \
-    output_padding, output_padding_shape
+from dreamer.models.observation import (
+    ObservationEncoder,
+    ObservationDecoder,
+    conv_out,
+    conv_out_shape,
+    output_padding,
+    output_padding_shape,
+)
 
 
 def test_observation_encoder(shape=(3, 64, 64)):
@@ -57,7 +63,7 @@ def test_observation_decoder(shape=(3, 64, 64)):
     assert obs_sample.size(4) == w
 
 
-@pytest.mark.parametrize('shape', [(3, 64, 64), (4, 104, 64)])
+@pytest.mark.parametrize("shape", [(3, 64, 64), (4, 104, 64)])
 def test_observation(shape):
     batch_size = 2
     c, h, w = shape
@@ -104,13 +110,21 @@ def test_observation_reconstruction(shape=(4, 104, 64)):
     conv4_pad = output_padding_shape(conv3_shape, conv4_shape, 0, 5, 2)
 
     decoder = torch.nn.Sequential(
-        torch.nn.ConvTranspose2d(32 * depth, 4 * depth, 5, stride, output_padding=conv4_pad),
+        torch.nn.ConvTranspose2d(
+            32 * depth, 4 * depth, 5, stride, output_padding=conv4_pad
+        ),
         activation(),
-        torch.nn.ConvTranspose2d(4 * depth, 2 * depth, 5, stride, output_padding=conv3_pad),
+        torch.nn.ConvTranspose2d(
+            4 * depth, 2 * depth, 5, stride, output_padding=conv3_pad
+        ),
         activation(),
-        torch.nn.ConvTranspose2d(2 * depth, 1 * depth, 6, stride, output_padding=conv2_pad),
+        torch.nn.ConvTranspose2d(
+            2 * depth, 1 * depth, 6, stride, output_padding=conv2_pad
+        ),
         activation(),
-        torch.nn.ConvTranspose2d(1 * depth, shape[0], 6, stride, output_padding=conv1_pad),
+        torch.nn.ConvTranspose2d(
+            1 * depth, shape[0], 6, stride, output_padding=conv1_pad
+        ),
     )
 
     image_obs = torch.randn(batch_size, c, h, w)
