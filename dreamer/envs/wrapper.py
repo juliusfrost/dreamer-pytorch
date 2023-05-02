@@ -4,13 +4,14 @@ from rlpyt.envs.base import Env
 
 
 class EnvWrapper(Env):
-
     def __init__(self, env: Env):
         self.env = env
 
     def __getattr__(self, name):
-        if name.startswith('_'):
-            raise AttributeError("attempted to get missing private attribute '{}'".format(name))
+        if name.startswith("_"):
+            raise AttributeError(
+                "attempted to get missing private attribute '{}'".format(name)
+            )
         return getattr(self.env, name)
 
     def step(self, action):
@@ -35,7 +36,9 @@ class EnvWrapper(Env):
         self.env.close()
 
 
-def make_wapper(base_class, wrapper_classes: Sequence = None, wrapper_kwargs: Sequence[Dict] = None):
+def make_wapper(
+    base_class, wrapper_classes: Sequence = None, wrapper_kwargs: Sequence[Dict] = None
+):
     """
     Creates the correct factory method with wrapper support.
     This would get passed as the EnvCls argument in the sampler.
@@ -50,6 +53,7 @@ def make_wapper(base_class, wrapper_classes: Sequence = None, wrapper_kwargs: Se
     :return: factory method
     """
     if wrapper_classes is None:
+
         def make_env(**env_kwargs):
             """:return only the base environment instance"""
             return base_class(**env_kwargs)

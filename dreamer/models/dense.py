@@ -5,8 +5,15 @@ import torch.nn as nn
 
 
 class DenseModel(nn.Module):
-    def __init__(self, feature_size: int, output_shape: tuple, layers: int, hidden_size: int, dist='normal',
-                 activation=nn.ELU):
+    def __init__(
+        self,
+        feature_size: int,
+        output_shape: tuple,
+        layers: int,
+        hidden_size: int,
+        dist="normal",
+        activation=nn.ELU,
+    ):
         super().__init__()
         self._output_shape = output_shape
         self._layers = layers
@@ -29,9 +36,15 @@ class DenseModel(nn.Module):
 
     def forward(self, features):
         dist_inputs = self.model(features)
-        reshaped_inputs = torch.reshape(dist_inputs, features.shape[:-1] + self._output_shape)
-        if self._dist == 'normal':
-            return td.independent.Independent(td.Normal(reshaped_inputs, 1), len(self._output_shape))
-        if self._dist == 'binary':
-            return td.independent.Independent(td.Bernoulli(logits=reshaped_inputs), len(self._output_shape))
+        reshaped_inputs = torch.reshape(
+            dist_inputs, features.shape[:-1] + self._output_shape
+        )
+        if self._dist == "normal":
+            return td.independent.Independent(
+                td.Normal(reshaped_inputs, 1), len(self._output_shape)
+            )
+        if self._dist == "binary":
+            return td.independent.Independent(
+                td.Bernoulli(logits=reshaped_inputs), len(self._output_shape)
+            )
         raise NotImplementedError(self._dist)

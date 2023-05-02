@@ -18,6 +18,4 @@ config = dict(
     ),
 )
 
-configs = dict(
-    default=config
-)
+configs = dict(default=config)

@@ -3,15 +3,15 @@ import torch.nn.functional as F
 import torch.distributions
 import numpy as np
 
-class SampleDist:
 
+class SampleDist:
     def __init__(self, dist: torch.distributions.Distribution, samples=100):
         self._dist = dist
         self._samples = samples
 
     @property
     def name(self):
-        return 'SampleDist'
+        return "SampleDist"
 
     def __getattr__(self, name):
         return getattr(self._dist, name)
@@ -27,7 +27,11 @@ class SampleDist:
         logprob = dist.log_prob(sample)
         batch_size = sample.size(1)
         feature_size = sample.size(2)
-        indices = torch.argmax(logprob, dim=0).reshape(1, batch_size, 1).expand(1, batch_size, feature_size)
+        indices = (
+            torch.argmax(logprob, dim=0)
+            .reshape(1, batch_size, 1)
+            .expand(1, batch_size, feature_size)
+        )
         return torch.gather(sample, 0, indices).squeeze(0)
 
     def entropy(self):

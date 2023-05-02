@@ -10,7 +10,7 @@ class TimeLimit(EnvWrapper):
         self._step = None
 
     def step(self, action):
-        assert self._step is not None, 'Must reset environment.'
+        assert self._step is not None, "Must reset environment."
         obs, reward, done, info = self.env.step(action)
         self._step += 1
         if self._step >= self._duration:
