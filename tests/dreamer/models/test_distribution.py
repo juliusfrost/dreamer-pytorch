@@ -1,6 +1,7 @@
 import torch
 
-from dreamer.models.distribution import SampleDist, TanhBijector
+from dreamer.models.distribution import SampleDist
+from torch.distributions import TanhTransform as TanhBijector
 
 
 def test_dist():
