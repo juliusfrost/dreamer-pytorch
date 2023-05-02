@@ -4,7 +4,7 @@ import torch
 from dreamer.models.dense import DenseModel
 
 
-@pytest.mark.parametrize('dist', ['normal', 'binary'])
+@pytest.mark.parametrize("dist", ["normal", "binary"])
 def test_dense_model(dist):
     shape = (1,)
     units = 20

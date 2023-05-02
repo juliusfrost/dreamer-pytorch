@@ -4,7 +4,9 @@ import torch
 from dreamer.models.action import ActionDecoder
 
 
-@pytest.mark.parametrize('dist', ['tanh_normal', 'one_hot', 'relaxed_one_hot', 'not_implemented_dist'])
+@pytest.mark.parametrize(
+    "dist", ["tanh_normal", "one_hot", "relaxed_one_hot", "not_implemented_dist"]
+)
 def test_action_decoder(dist):
     batch_size = 4
     action_size = 10
@@ -13,7 +15,9 @@ def test_action_decoder(dist):
     layers = 5
 
     try:
-        action_decoder = ActionDecoder(action_size, feature_size, hidden_size, layers, dist)
+        action_decoder = ActionDecoder(
+            action_size, feature_size, hidden_size, layers, dist
+        )
     except NotImplementedError:
         return
 
@@ -21,7 +25,7 @@ def test_action_decoder(dist):
 
     action_dist = action_decoder(features)
 
-    if dist == 'tanh_normal':
+    if dist == "tanh_normal":
         action_mean = action_dist.mean()
         action_mode = action_dist.mode()
         action_ent = action_dist.entropy()
@@ -40,9 +44,9 @@ def test_action_decoder(dist):
         # make sure gradients can propagate backwards
         loss = torch.sum((action_mean - true_action) ** 2)
         loss += torch.sum((action_mode - true_action) ** 2)
-        loss += - torch.sum(action_ent)
+        loss += -torch.sum(action_ent)
         loss.backward()
-    elif dist == 'one_hot':
+    elif dist == "one_hot":
         action_mean = action_dist.mean
         action_ent = action_dist.entropy()
 
