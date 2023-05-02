@@ -1,7 +1,6 @@
 # Dreamer PyTorch
 
 [![tests](https://github.com/juliusfrost/dreamer-pytorch/workflows/tests/badge.svg)](https://github.com/juliusfrost/dreamer-pytorch/actions)
-[![codecov](https://codecov.io/gh/juliusfrost/dreamer-pytorch/branch/master/graph/badge.svg?token=DN9RKIRS7C)](https://codecov.io/gh/juliusfrost/dreamer-pytorch)
 
 Dream to Control: Learning Behaviors by Latent Imagination
 
@@ -36,47 +35,26 @@ Table 1. Dreamer PyTorch vs. Paper Implementation
 
 ## Installation
 
-### Install packages
+- Install Python 3.11
+- Install Python [Poetry](https://python-poetry.org/docs/#installation)
 
-#### rlpyt
-
-1. Clone the [rlpyt](https://github.com/astooke/rlpyt) framework with
-`git clone https://github.com/astooke/rlpyt.git` and copy the `rlpyt` sub-directory into this directory.  
-2. Or install directly from github with 
-`pip install git+https://github.com/astooke/rlpyt.git`
-
-Other rlpyt requirements
-- psutil: `pip install psutil`  
-- pyprind: `pip install pyprind`
-
-(you may need --user flag when installing with pip)
-
-Install PyTorch according to their [website](https://pytorch.org/get-started/locally/)
-
-Install gym with `pip install gym`
-
-Install tensorboard with `pip install tensorboard` or install [TensorFlow](https://www.tensorflow.org/install)
-
-To run tests, install pytest: `pip install pytest`
-
-For any other requirements do `pip install -r requirements.txt`
-
-#### atari
 ```bash
-pip install atari_py
-```
-opencv:  
-1. anaconda: https://anaconda.org/conda-forge/opencv
-2. pip: `pip install opencv-python`
+# clone the repo with rlpyt submodule
+git clone --recurse-submodules https://github.com/juliusfrost/dreamer-pytorch.git
+cd dreamer-pytorch
 
-#### DeepMind Control
-Only linux is supported. Follow instructions on [dm_control](https://github.com/deepmind/dm_control)
-```bash
-pip install mujoco_py
-pip install dm_control
-```
+# Windows
+cd setup/windows_cu118
 
-You must have a [mujoco license](https://www.roboti.us/license.html)
+# Linux
+cd setup/linux_cu118
+
+# install with poetry
+poetry install
+
+# install with pip
+pip install -r requirements.txt
+```
 
 ## Running Experiments
 
