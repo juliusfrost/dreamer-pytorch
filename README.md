@@ -2,6 +2,10 @@
 
 [![tests](https://github.com/juliusfrost/dreamer-pytorch/workflows/tests/badge.svg)](https://github.com/juliusfrost/dreamer-pytorch/actions)
 
+
+**PA: This repository is in maintenance mode. No new features will be added but bugfixes and contributions are welcome. Please create a [pull request](https://github.com/juliusfrost/dreamer-pytorch/compare) with any fixes you have!**
+
+
 Dream to Control: Learning Behaviors by Latent Imagination
 
 Paper: https://arxiv.org/abs/1912.01603  
