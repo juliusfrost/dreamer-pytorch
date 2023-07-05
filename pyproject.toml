@@ -12,7 +12,7 @@ packages = [
 [tool.poetry.dependencies]
 python = "~3.11"
 torch = { url = "https://download.pytorch.org/whl/cpu/torch-2.0.0%2Bcpu-cp311-cp311-linux_x86_64.whl" }
-opencv-python = "^4.7.0.72"
+opencv-python = "^4.8.0.74"
 numpy = "^1.25.0"
 psutil = "^5.9.5"
 pyprind = "^2.11.3"
