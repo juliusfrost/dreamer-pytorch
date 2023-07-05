@@ -265,13 +265,13 @@ files = [
 
 [[package]]
 name = "dm-control"
-version = "1.0.12"
+version = "1.0.13"
 description = "Continuous control environments and MuJoCo Python bindings."
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "dm_control-1.0.12-py3-none-any.whl", hash = "sha256:419f8e16418b55caa4b67280cd89da86f587cd21eedeeafa3b2ee4e2b14cba5d"},
-    {file = "dm_control-1.0.12.tar.gz", hash = "sha256:ec337f64fe227279472cc5225938cbdd53094d4b2d70c7026339dba4006fa8ed"},
+    {file = "dm_control-1.0.13-py3-none-any.whl", hash = "sha256:590f20771573969a8388436ff9bd07828be7d560b98d11de308a786bc19f841b"},
+    {file = "dm_control-1.0.13.tar.gz", hash = "sha256:4b86ee127204b0400b18d029197c5ca98a1268a9d2da195a0b26a82b6777bce3"},
 ]
 
 [package.dependencies]
@@ -281,7 +281,7 @@ dm-tree = "!=0.1.2"
 glfw = "*"
 labmaze = "*"
 lxml = "*"
-mujoco = ">=2.3.4"
+mujoco = ">=2.3.6"
 numpy = ">=1.9.0"
 protobuf = ">=3.19.4"
 pyopengl = ">=3.1.4"
@@ -880,36 +880,36 @@ tests = ["pytest (>=4.6)"]
 
 [[package]]
 name = "mujoco"
-version = "2.3.5"
+version = "2.3.6"
 description = "MuJoCo Physics Simulator"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "mujoco-2.3.5-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:51909772a5289b183434ccc74ed26420255f5ff905bb1e030f982dabba2a4afc"},
-    {file = "mujoco-2.3.5-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:de6c544046b9f104c05c025daabc4c10370f9638094b352329314f0e36225714"},
-    {file = "mujoco-2.3.5-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c17b4a79b214a092fa561b9065e051ae3af4d6c6f138fd934bb6e82daec059df"},
-    {file = "mujoco-2.3.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8f4b1c431f454fda3237a54b48b75d7dc320836fbc2c386beadd498ff3b03aa0"},
-    {file = "mujoco-2.3.5-cp310-cp310-win_amd64.whl", hash = "sha256:121b551e65f5211e9c406be2c00f67d6a9a13e6c44d89fe46419542d0e2054b5"},
-    {file = "mujoco-2.3.5-cp311-cp311-macosx_10_12_x86_64.whl", hash = "sha256:9cd73e6ead99b4f0baf1b42c5aa571da8818a7d1d72331b08bd190e5a0cea1ad"},
-    {file = "mujoco-2.3.5-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:d621353d6be604a5e11bc015a52f76c594496d19f5a431df0c2beb9ee71bcd3d"},
-    {file = "mujoco-2.3.5-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:55a5f082acc156499c531f1c0a0b53aefa51dcadf5b3588edcadc71c5a8e646d"},
-    {file = "mujoco-2.3.5-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:32bf87cb5e17a993ce71f820ef2786a8c71f588e426a346d6de01cbf16843d14"},
-    {file = "mujoco-2.3.5-cp311-cp311-win_amd64.whl", hash = "sha256:1c3ab3bf087255c535571ceeab4c2fb62d8f00dfbd3a0d2a5c1cc115c1144d79"},
-    {file = "mujoco-2.3.5-cp37-cp37m-macosx_10_12_x86_64.whl", hash = "sha256:1ba3f282b0a537d7bd22e81488305ec104e55b18e48cae6718fa7cf820d18aed"},
-    {file = "mujoco-2.3.5-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:daae78b6fd7831bbc8510a02cfe34d2be641f8af2257df9b9b81f1f4abb00067"},
-    {file = "mujoco-2.3.5-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:fffe7e3a8a13eb0ef9478d91ce16760db645b33da939db1935751d7e88893ed9"},
-    {file = "mujoco-2.3.5-cp37-cp37m-win_amd64.whl", hash = "sha256:962a7d94d8ad9fb5a16ca97f25f8dabe607a2b7ec0cdc84173b9614c132fc488"},
-    {file = "mujoco-2.3.5-cp38-cp38-macosx_10_12_x86_64.whl", hash = "sha256:4d64445da3e091c4a63ceec0d2a181d981b89a2f3215cc4c78dd793815368f4e"},
-    {file = "mujoco-2.3.5-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:e218455e52ea3309ae90b97f7344c98f01e5e54515e27794677d19d64722cad7"},
-    {file = "mujoco-2.3.5-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:cbdc5a19f1006c50edbd97bff349e45f3f7b81b9058a185a02123c1b06397962"},
-    {file = "mujoco-2.3.5-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1e2d45eaa76799681e61d2ef0a2d22a12a77b6ac4f4471deef862e80b3e7cbe2"},
-    {file = "mujoco-2.3.5-cp38-cp38-win_amd64.whl", hash = "sha256:8333cb49049e77f64d8ae944c05fa907a012fbcc19002ab752ab461a814ca17d"},
-    {file = "mujoco-2.3.5-cp39-cp39-macosx_10_12_x86_64.whl", hash = "sha256:b61e54e8618365c48395cb20bcc46a456dbb248b24a059729b2deb43646c4a80"},
-    {file = "mujoco-2.3.5-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:10aa8ff583b42966170b9a38d62c4fdad35351fca716d3d005887d45dbe69b95"},
-    {file = "mujoco-2.3.5-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:27f8cd4e94d6e153c5477001f9ad8df4d44e2a45e4d76f1829af4204d9806701"},
-    {file = "mujoco-2.3.5-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:223882a4b4c4becb57172a94255709060f58d5075c59ef7f2869b080d7199d84"},
-    {file = "mujoco-2.3.5-cp39-cp39-win_amd64.whl", hash = "sha256:3f411e1950fe6e7bc6266ae71749860c272e1a0865db2a865624407272710205"},
-    {file = "mujoco-2.3.5.tar.gz", hash = "sha256:39d966e6ec3cb9ed212de238de0c563ea9b4450f2c87043feff256089514aab4"},
+    {file = "mujoco-2.3.6-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:763fc372696539c48a0d5ab1a708c28daa5177bb08836e85a0c0f39523b85e2a"},
+    {file = "mujoco-2.3.6-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:e5bb150a91d33ab79a2b77983554c12762eee7a2b9e9a330773e8f2ad52911c0"},
+    {file = "mujoco-2.3.6-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:ce908f3cc98af18793bb741ec86f199a5c1545e91772dc79d638c35e553aee3f"},
+    {file = "mujoco-2.3.6-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f73a2521777564a452174f6bfdfe116e66469ca2595c0850aedcb4cf87340fb9"},
+    {file = "mujoco-2.3.6-cp310-cp310-win_amd64.whl", hash = "sha256:1b319e87861e7eca2ed650cf478ae2ec951e9b0e7abc3b3fe07e2f9fb3405702"},
+    {file = "mujoco-2.3.6-cp311-cp311-macosx_10_12_x86_64.whl", hash = "sha256:b352b3266eed4b8d6b42b7e8f88b4c97916e656f0fbcd87616d8f663926a3681"},
+    {file = "mujoco-2.3.6-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:823fd5a46ba2d72b2dedd7d2e743677f2f6ee806120c6e88fa799d14e7c4dd9d"},
+    {file = "mujoco-2.3.6-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:1b8b97bb259717d3bd941a4f0e1c32de36bac3329b5368117a08de49fedf3717"},
+    {file = "mujoco-2.3.6-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:1df0acbfa1f825189473f514c03e4c6aee6549db8f3fe3072815e0a3a81c0dca"},
+    {file = "mujoco-2.3.6-cp311-cp311-win_amd64.whl", hash = "sha256:44bf071c294aec13330e54ecd0fb4cb3959a08bf2312250d1626d6521701f0e9"},
+    {file = "mujoco-2.3.6-cp37-cp37m-macosx_10_12_x86_64.whl", hash = "sha256:5b0fb638ea973d7c602046b5f4b933474fcd75136476a21d701d1ff338999a85"},
+    {file = "mujoco-2.3.6-cp37-cp37m-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:162ef580f996755cc64d14c6765aca6894ba5afd3f4967809905846cdff79e2d"},
+    {file = "mujoco-2.3.6-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:759dc9d56746f8249f1193fd9d23cd9febc789d1bd1dd4d4dbe23a7326023fad"},
+    {file = "mujoco-2.3.6-cp37-cp37m-win_amd64.whl", hash = "sha256:4f0bc35057c2c405ddd11ff1ad89d3b85b8f7ab21a2f2a3213611614f97c454e"},
+    {file = "mujoco-2.3.6-cp38-cp38-macosx_10_12_x86_64.whl", hash = "sha256:417f7ab40544b4d4c14b656a3af5f7307cbb98739252deaa92e0acae563d2c6f"},
+    {file = "mujoco-2.3.6-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:236fb6412125f5831507809888d97c203776fbc4e7145d0ddb0b543655edc83c"},
+    {file = "mujoco-2.3.6-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:db562efda556879bb0f1356f407bd24585cd48d035d5d225c184e4f21f7e05b1"},
+    {file = "mujoco-2.3.6-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7a95ce46c6fadcaea9634edeb13df78e2e12af092a5f0a14e86dd23d2e18a10e"},
+    {file = "mujoco-2.3.6-cp38-cp38-win_amd64.whl", hash = "sha256:e4174d42365ec87d1374db612b5f00d103127ad1efe21a5bad279ded4c7b74f9"},
+    {file = "mujoco-2.3.6-cp39-cp39-macosx_10_12_x86_64.whl", hash = "sha256:2cc939a0d9cbf66734c3a3ded3a9161e45459a5da4a781931dbe8bba018f8bd8"},
+    {file = "mujoco-2.3.6-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:b2f3f1135ba8646ca3de23f43ebd840630b0a68d16038c2d4f55f7cc9a375c0c"},
+    {file = "mujoco-2.3.6-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:78a4062871a0c2fee9a2c0a2da0aa66e0250b5fefe1d7769c256c50695c0d608"},
+    {file = "mujoco-2.3.6-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8f303d8f85d9b091e23aff2a3224a276195bc68911644b50373956ccb8266808"},
+    {file = "mujoco-2.3.6-cp39-cp39-win_amd64.whl", hash = "sha256:524c0988d0ac166c3d833897f2470fcd4b935a2401a851e2df003060606cf4b0"},
+    {file = "mujoco-2.3.6.tar.gz", hash = "sha256:1870fb2857d008482961cb64dd261cb75b24da254985c32f953ef19d16141386"},
 ]
 
 [package.dependencies]
@@ -1672,4 +1672,4 @@ test = ["pytest (>=6.0.0)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.11"
-content-hash = "59191a09b58923aaa3ded9c923be0cc3955b7fa2339e97cbb58b795d5de4cdf8"
+content-hash = "b1f88450fefabd55fcfc8096a9ced4934a7d0e6df955152154459ea4a8130e12"
