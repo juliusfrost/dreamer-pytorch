@@ -20,7 +20,7 @@ tqdm = "^4.65.0"
 tensorboard = "^2.13.0"
 moviepy = "^1.0.3"
 atari-py = "^0.2.9"
-dm-control = "^1.0.13"
+dm-control = "^1.0.14"
 gym = "^0.26.2"
 
 [tool.poetry.group.dev.dependencies]
